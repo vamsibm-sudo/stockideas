@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulls&Bears - Admin Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand"><img src="logo.jpeg" alt="Bulls&Bears" class="logo-img"> Bulls&Bears Admin</div>
+            <div class="nav-menu">
+                <a href="index.html" class="nav-link">View Ideas</a>
+                <span id="adminUser" class="nav-link"></span>
+                <button id="logoutBtn" class="nav-link logout">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal active">
+        <div class="modal-content login-card">
+            <h2>Admin Login</h2>
+            <form id="loginForm">
+                <img src="logo.jpeg" alt="Bulls&Bears" class="login-logo">
+                <h3 style="text-align: center; margin-bottom: 1.5rem;">Bulls&Bears Admin</h3>
+                <div class="form-group">
+                    <input type="password" id="loginCode" required placeholder="Enter access code">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="adminDashboard" class="dashboard hidden">
+        <div class="container">
+            <div class="dashboard-header">
+                <h1>Bulls&Bears - Admin Dashboard</h1>
+                <button id="newStockBtn" class="btn btn-primary">+ New Stock Idea</button>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="stocks">Stock Ideas</button>
+                <button class="tab-btn" data-tab="logs">Activity Logs</button>
+                <button class="tab-btn" data-tab="export">Export Data</button>
+            </div>
+
+            <!-- Stocks Tab -->
+            <div id="stocks" class="tab-content active">
+                <div id="stocksList" class="stocks-table-container">
+                    <div class="loading">Loading stocks...</div>
+                </div>
+            </div>
+
+            <!-- Logs Tab -->
+            <div id="logs" class="tab-content">
+                <div id="logsList" class="logs-container">
+                    <div class="loading">Loading logs...</div>
+                </div>
+            </div>
+
+            <!-- Export Tab -->
+            <div id="export" class="tab-content">
+                <div class="export-section">
+                    <h3>Export Stocks Data</h3>
+                    <p>Download all stock ideas for automation scripts (WhatsApp, Discord, etc.)</p>
+                    <div class="export-buttons">
+                        <button id="exportJSON" class="btn btn-secondary">📥 Export as JSON</button>
+                        <button id="exportCSV" class="btn btn-secondary">📊 Export as CSV</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Modal -->
+    <div id="stockModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Stock Idea</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <form id="stockForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ticker Symbol *</label>
+                        <input type="text" id="ticker" required placeholder="e.g., AAPL, TSLA">
+                    </div>
+                    <div class="form-group">
+                        <label>Company Name *</label>
+                        <input type="text" id="companyName" required placeholder="e.g., Apple Inc.">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Current Price *</label>
+                        <input type="number" id="currentPrice" required placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Entry Price *</label>
+                        <input type="number" id="entryPrice" required placeholder="0.00" step="0.01">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Target Price *</label>
+                        <input type="number" id="targetPrice" required placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Stop Loss *</label>
+                        <input type="number" id="stopLoss" required placeholder="0.00" step="0.01">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Action *</label>
+                        <select id="action" required>
+                            <option value="">Select Action</option>
+                            <option value="buy">BUY</option>
+                            <option value="sell">SELL</option>
+                            <option value="hold">HOLD</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Confidence Level *</label>
+                        <select id="confidenceLevel" required>
+                            <option value="">Select Confidence</option>
+                            <option value="high">High (85-100%)</option>
+                            <option value="medium">Medium (60-85%)</option>
+                            <option value="low">Low (40-60%)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Sector *</label>
+                        <select id="sector" required>
+                            <option value="">Select Sector</option>
+                            <option value="technology">Technology</option>
+                            <option value="healthcare">Healthcare</option>
+                            <option value="finance">Finance</option>
+                            <option value="energy">Energy</option>
+                            <option value="consumer">Consumer</option>
+                            <option value="industrial">Industrial</option>
+                            <option value="real-estate">Real Estate</option>
+                            <option value="utilities">Utilities</option>
+                            <option value="materials">Materials</option>
+                            <option value="communications">Communications</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Timeframe *</label>
+                        <select id="timeframe" required>
+                            <option value="">Select Timeframe</option>
+                            <option value="short-term">Short-term (< 1 month)</option>
+                            <option value="medium-term">Medium-term (1-3 months)</option>
+                            <option value="long-term">Long-term (> 3 months)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Reasoning *</label>
+                    <textarea id="reasoning" required placeholder="Explain why this is a good opportunity..." rows="4"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Risk Analysis</label>
+                    <textarea id="riskAnalysis" placeholder="Potential risks and downsides..." rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="status">
+                        <option value="active">Active</option>
+                        <option value="closed">Closed</option>
+                        <option value="updated">Updated</option>
+                    </select>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary close-stock">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Stock Idea</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/admin.js"></script>
+</body>
+</html>

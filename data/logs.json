@@ -1,0 +1,26 @@
+[
+  {
+    "timestamp": "2026-04-02T05:08:20.036Z",
+    "action": "LOGIN_FAILED",
+    "user": "04022026 ",
+    "details": "Failed login attempt"
+  },
+  {
+    "timestamp": "2026-04-02T05:08:29.047Z",
+    "action": "LOGIN",
+    "user": "04022026",
+    "details": "Admin login successful"
+  },
+  {
+    "timestamp": "2026-04-02T05:09:47.051Z",
+    "action": "CREATE_STOCK",
+    "user": "04022026",
+    "details": "Created stock: INTC"
+  },
+  {
+    "timestamp": "2026-04-02T05:10:55.853Z",
+    "action": "CREATE_STOCK",
+    "user": "04022026",
+    "details": "Created stock: NOW"
+  }
+]
