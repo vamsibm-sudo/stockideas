@@ -3,60 +3,313 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bulls&Bears - Stock Trading Ideas</title>
+    <title>Bulls&Bears - Trade Ideas</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <div class="nav-brand"><img src="logo.jpeg" alt="Bulls&Bears" class="logo-img"> Bulls&Bears</div>
-            <div class="nav-menu">
-                <a href="index.html" class="nav-link active">View Ideas</a>
-                <a href="admin.html" class="nav-link">Admin Portal</a>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-box">
+            <img src="logo.jpeg" alt="Bulls&Bears" class="login-logo">
+            <h1>Bulls &amp; Bears</h1>
+            <p class="login-subtitle">Trade Ideas</p>
+            <div id="authError" class="auth-error" style="display:none;">
+                Signup for stocks membership to access
             </div>
-        </div>
-    </nav>
-
-    <div class="container">
-        <section class="hero">
-            <h1>🐂 Bulls & 🐻 Bears Trading Ideas</h1>
-            <p>Navigate market opportunities with expert stock analysis and insights</p>
-        </section>
-
-        <div class="filters">
-            <input type="text" id="searchInput" placeholder="Search by ticker or company..." class="search-box">
-            <select id="filterStatus" class="filter-select">
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="closed">Closed</option>
-                <option value="updated">Updated</option>
-            </select>
-            <select id="filterTimeframe" class="filter-select">
-                <option value="">All Timeframes</option>
-                <option value="short-term">Short-term (< 1 month)</option>
-                <option value="medium-term">Medium-term (1-3 months)</option>
-                <option value="long-term">Long-term (> 3 months)</option>
-            </select>
-        </div>
-
-        <div id="stocksContainer" class="stocks-grid">
-            <div class="loading">Loading stock ideas...</div>
+            <a href="/auth/discord" class="btn-discord">
+                <svg width="24" height="18" viewBox="0 0 24 18" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20.317 1.492a19.825 19.825 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.301 18.301 0 0 0-5.487 0 12.68 12.68 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.77 19.77 0 0 0 3.677 1.492a.07.07 0 0 0-.032.027C.533 6.168-.32 10.702.099 15.179c.002.022.013.043.032.057a19.944 19.944 0 0 0 5.993 3.029.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.14 13.14 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.32 10.32 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127c-.598.35-1.22.645-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.874 19.874 0 0 0 6.002-3.029.077.077 0 0 0 .032-.055c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.029zM8.02 11.278c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                </svg>
+                Login with Discord
+            </a>
         </div>
     </div>
 
-    <footer class="footer">
-        <p>&copy; 2026 Bulls&Bears Trading Platform. Navigate the market with confidence. 📈</p>
-    </footer>
+    <!-- Main App -->
+    <div id="app" class="app-hidden">
+
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <img src="logo.jpeg" alt="Bulls&Bears" class="logo-img"> Bulls&amp;Bears
+                </div>
+                <div class="nav-menu">
+                    <span id="navUsername" class="nav-username"></span>
+                    <a href="/auth/logout" class="nav-link logout">Logout</a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container main-content">
+
+            <!-- Stats bar -->
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span class="stat-value" id="statOpen">—</span>
+                    <span class="stat-label">Open</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-value" id="statPartial">—</span>
+                    <span class="stat-label">Partial</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-value" id="statClosed">—</span>
+                    <span class="stat-label">Closed</span>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <input type="text" id="searchInput" placeholder="Search ticker or company…" class="search-box">
+                <select id="filterStatus" class="filter-select">
+                    <option value="">All Status</option>
+                    <option value="open">Open</option>
+                    <option value="partial">Partial</option>
+                </select>
+                <button id="addTradeBtn" class="btn btn-primary mod-only">+ Add Trade</button>
+            </div>
+
+            <!-- View tabs -->
+            <div class="view-tabs">
+                <button class="view-tab active" data-view="cardView">Cards</button>
+                <button class="view-tab" data-view="tableView">Table</button>
+                <button class="view-tab" data-view="closedView">Closed Positions</button>
+            </div>
+
+            <!-- Main area + activity panel -->
+            <div class="content-with-panel">
+
+                <div class="content-main">
+                    <!-- Card View (default) -->
+                    <div id="cardView" class="view-panel">
+                        <div id="cardsGrid" class="cards-grid">
+                            <div class="loading-cell">Loading trades…</div>
+                        </div>
+                    </div>
+
+                    <!-- Table View -->
+                    <div id="tableView" class="view-panel view-panel-hidden">
+                        <div class="table-wrap">
+                            <table class="trades-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-expand"></th>
+                                        <th>Ticker</th>
+                                        <th>Dir</th>
+                                        <th>Entry</th>
+                                        <th>Current</th>
+                                        <th>Stop Loss</th>
+                                        <th>Target(s)</th>
+                                        <th>Realized P&amp;L</th>
+                                        <th>Open P&amp;L</th>
+                                        <th>Status</th>
+                                        <th class="mod-only col-actions">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tradesBody">
+                                    <tr><td colspan="11" class="loading-cell">Loading trades…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Closed Positions View -->
+                    <div id="closedView" class="view-panel view-panel-hidden">
+                        <div class="table-wrap">
+                            <table class="trades-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-expand"></th>
+                                        <th>Ticker</th>
+                                        <th>Dir</th>
+                                        <th>Entry</th>
+                                        <th>Stop Loss</th>
+                                        <th>Target(s)</th>
+                                        <th>Realized P&amp;L</th>
+                                        <th>Confidence</th>
+                                        <th>Timeframe</th>
+                                        <th>Closed</th>
+                                        <th class="mod-only col-actions">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="closedBody">
+                                    <tr><td colspan="11" class="loading-cell">Loading…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity panel -->
+                <aside class="activity-panel">
+                    <div class="activity-header">
+                        <span class="activity-title">Activity</span>
+                        <span class="activity-count" id="activityCount"></span>
+                    </div>
+                    <div class="activity-list" id="activityList">
+                        <div class="activity-loading">Loading…</div>
+                    </div>
+                </aside>
+
+            </div><!-- .content-with-panel -->
+
+        </div><!-- .container -->
+
+        <footer class="footer">
+            <p>&copy; 2026 Bulls&amp;Bears Trading Platform. Prices from Yahoo Finance. 📈</p>
+        </footer>
+
+    </div>
+
+    <!-- ── Add / Edit Trade Modal ── -->
+    <div id="tradeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="tradeModalTitle">Add Trade</h2>
+                <button class="close-btn" data-close="tradeModal">&times;</button>
+            </div>
+            <form id="tradeForm">
+                <!-- Ticker + fetch -->
+                <div class="form-group">
+                    <label>Ticker *</label>
+                    <div class="ticker-row">
+                        <input type="text" id="f-ticker" placeholder="AAPL" required class="ticker-input">
+                        <button type="button" id="fetchTickerBtn" class="btn btn-secondary">Fetch</button>
+                    </div>
+                    <div id="tickerStatus" class="ticker-status"></div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Company Name *</label>
+                        <input type="text" id="f-company" placeholder="Apple Inc." required>
+                    </div>
+                    <div class="form-group">
+                        <label>Direction *</label>
+                        <select id="f-direction" required>
+                            <option value="BUY">BUY (Long)</option>
+                            <option value="SELL">SELL (Short)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Sector <small>auto-filled</small></label>
+                        <input type="text" id="f-sector" placeholder="Technology">
+                    </div>
+                    <div class="form-group">
+                        <label>Confidence Level *</label>
+                        <select id="f-confidence" required>
+                            <option value="">Select Confidence</option>
+                            <option value="high">High (85-100%)</option>
+                            <option value="medium">Medium (60-85%)</option>
+                            <option value="low">Low (40-60%)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Entry Price * <small id="fetchedPriceHint" class="fetched-hint"></small></label>
+                        <input type="number" id="f-entry" step="0.01" min="0" placeholder="150.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Stop Loss *</label>
+                        <input type="number" id="f-stop" step="0.01" min="0" placeholder="140.00" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Target(s) * <small>comma-separated</small></label>
+                        <input type="text" id="f-targets" placeholder="160, 170, 180" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Timeframe *</label>
+                        <select id="f-timeframe" required>
+                            <option value="">Select Timeframe</option>
+                            <option value="short-term">Short-term (&lt; 1 month)</option>
+                            <option value="medium-term">Medium-term (1-3 months)</option>
+                            <option value="long-term">Long-term (&gt; 3 months)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Reasoning *</label>
+                    <textarea id="f-reasoning" rows="3" placeholder="Why is this a good opportunity?" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Risk Analysis</label>
+                    <textarea id="f-risk" rows="2" placeholder="Potential risks and downsides…"></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close="tradeModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Trade</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Add Update Modal ── -->
+    <div id="updateModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="updateModalTitle">Add Update</h2>
+                <button class="close-btn" data-close="updateModal">&times;</button>
+            </div>
+            <form id="updateForm">
+                <div class="form-group">
+                    <label>Update Type *</label>
+                    <select id="u-type" required>
+                        <option value="partial_close">Partial Close</option>
+                        <option value="full_close">Full Close</option>
+                        <option value="add_position">Add to Position (DCA)</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label id="u-price-label">Close Price *</label>
+                        <input type="number" id="u-price" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group" id="percentGroup">
+                        <label id="u-percent-label">% of Position to Close *</label>
+                        <input type="number" id="u-percent" min="1" max="100" value="50">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Note</label>
+                    <textarea id="u-note" rows="3" placeholder="Reason for this update…"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close="updateModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Delete Confirm Modal ── -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h2>Delete Trade</h2>
+                <button class="close-btn" data-close="deleteModal">&times;</button>
+            </div>
+            <p class="delete-msg">Are you sure you want to delete <strong id="deleteTickerName"></strong>? This cannot be undone.</p>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close="deleteModal">Cancel</button>
+                <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
 
     <script src="js/app.js"></script>
-    <script>
-        // Load stocks on page load
-        loadStocks();
-        
-        // Event listeners
-        document.getElementById('searchInput').addEventListener('input', filterStocks);
-        document.getElementById('filterStatus').addEventListener('change', filterStocks);
-        document.getElementById('filterTimeframe').addEventListener('change', filterStocks);
-    </script>
 </body>
 </html>
