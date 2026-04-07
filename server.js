@@ -2,18 +2,141 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
 const session = require('express-session');
 const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const fetch = require('node-fetch');
+const { Pool } = require('pg');
+const pgSession = require('connect-pg-simple')(session);
 const YahooFinance = require('yahoo-finance2').default;
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// ─── PostgreSQL pool ──────────────────────────────────────────
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
+
+// ─── DB init: create tables if they don't exist ───────────────
+async function initDB() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS trades (
+      id               TEXT PRIMARY KEY,
+      ticker           TEXT NOT NULL,
+      company_name     TEXT,
+      direction        TEXT,
+      entry_price      NUMERIC,
+      stop_loss        NUMERIC,
+      remaining_percent NUMERIC DEFAULT 100,
+      targets          JSONB DEFAULT '[]',
+      sector           TEXT,
+      confidence_level TEXT,
+      timeframe        TEXT,
+      reasoning        TEXT,
+      risk_analysis    TEXT,
+      status           TEXT DEFAULT 'open',
+      actions          JSONB DEFAULT '[]',
+      created_at       TIMESTAMPTZ DEFAULT NOW(),
+      updated_at       TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  console.log('DB ready');
+}
+
+// ─── DB helpers ───────────────────────────────────────────────
+function rowToTrade(row) {
+  return {
+    id:               row.id,
+    ticker:           row.ticker,
+    companyName:      row.company_name,
+    direction:        row.direction,
+    entryPrice:       parseFloat(row.entry_price),
+    stopLoss:         parseFloat(row.stop_loss),
+    remainingPercent: parseFloat(row.remaining_percent),
+    targets:          row.targets,
+    sector:           row.sector,
+    confidenceLevel:  row.confidence_level,
+    timeframe:        row.timeframe,
+    reasoning:        row.reasoning,
+    riskAnalysis:     row.risk_analysis,
+    status:           row.status,
+    actions:          row.actions,
+    createdAt:        row.created_at,
+    updatedAt:        row.updated_at
+  };
+}
+
+async function getTrades() {
+  const { rows } = await pool.query('SELECT * FROM trades ORDER BY created_at DESC');
+  return rows.map(rowToTrade);
+}
+
+async function getTrade(id) {
+  const { rows } = await pool.query('SELECT * FROM trades WHERE id = $1', [id]);
+  return rows.length ? rowToTrade(rows[0]) : null;
+}
+
+async function createTrade(t) {
+  const { rows } = await pool.query(
+    `INSERT INTO trades
+      (id, ticker, company_name, direction, entry_price, stop_loss, remaining_percent,
+       targets, sector, confidence_level, timeframe, reasoning, risk_analysis,
+       status, actions, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+     RETURNING *`,
+    [
+      t.id, t.ticker, t.companyName, t.direction,
+      t.entryPrice, t.stopLoss, t.remainingPercent,
+      JSON.stringify(t.targets),
+      t.sector, t.confidenceLevel, t.timeframe, t.reasoning, t.riskAnalysis,
+      t.status, JSON.stringify(t.actions),
+      t.createdAt, t.updatedAt
+    ]
+  );
+  return rowToTrade(rows[0]);
+}
+
+async function updateTrade(id, fields) {
+  const { rows } = await pool.query(
+    `UPDATE trades SET
+      ticker           = $2,
+      company_name     = $3,
+      direction        = $4,
+      entry_price      = $5,
+      stop_loss        = $6,
+      remaining_percent = $7,
+      targets          = $8,
+      sector           = $9,
+      confidence_level = $10,
+      timeframe        = $11,
+      reasoning        = $12,
+      risk_analysis    = $13,
+      status           = $14,
+      actions          = $15,
+      updated_at       = $16
+     WHERE id = $1
+     RETURNING *`,
+    [
+      id,
+      fields.ticker, fields.companyName, fields.direction,
+      fields.entryPrice, fields.stopLoss, fields.remainingPercent,
+      JSON.stringify(fields.targets),
+      fields.sector, fields.confidenceLevel, fields.timeframe,
+      fields.reasoning, fields.riskAnalysis,
+      fields.status, JSON.stringify(fields.actions),
+      new Date().toISOString()
+    ]
+  );
+  return rows.length ? rowToTrade(rows[0]) : null;
+}
+
+async function deleteTrade(id) {
+  await pool.query('DELETE FROM trades WHERE id = $1', [id]);
+}
 
 // ─── Price cache (5 min TTL) ──────────────────────────────────
 const priceCache = new Map();
@@ -66,6 +189,7 @@ function calcPnL(trade, currentPrice) {
 app.use(cors());
 app.use(bodyParser.json());
 app.use(session({
+  store: new pgSession({ pool, createTableIfMissing: true }),
   secret: process.env.SESSION_SECRET || 'change-this-secret',
   resave: false,
   saveUninitialized: false,
@@ -74,22 +198,6 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(express.static('public'));
-
-// ─── Data helpers ─────────────────────────────────────────────
-const tradesFile = path.join(__dirname, 'data', 'trades.json');
-
-function readTrades() {
-  try { return JSON.parse(fs.readFileSync(tradesFile, 'utf8')); }
-  catch { return []; }
-}
-
-function writeTrades(data) {
-  fs.writeFileSync(tradesFile, JSON.stringify(data, null, 2));
-}
-
-if (!fs.existsSync(tradesFile)) {
-  fs.writeFileSync(tradesFile, JSON.stringify([], null, 2));
-}
 
 // ─── Passport / Discord OAuth2 ────────────────────────────────
 passport.serializeUser((user, done) => done(null, user));
@@ -153,7 +261,7 @@ app.get('/api/auth/me', (req, res) => {
 
 // GET all trades — inject live prices + P&L
 app.get('/api/trades', requireAuth, async (req, res) => {
-  const trades = readTrades();
+  const trades = await getTrades();
 
   const openTickers = [...new Set(
     trades.filter(t => t.status !== 'closed').map(t => t.ticker)
@@ -174,11 +282,11 @@ app.get('/api/trades', requireAuth, async (req, res) => {
 });
 
 // POST create trade (mods only)
-app.post('/api/trades', requireMod, (req, res) => {
+app.post('/api/trades', requireMod, async (req, res) => {
   const { ticker, companyName, direction, entryPrice, stopLoss, targets,
           sector, confidenceLevel, timeframe, reasoning, riskAnalysis } = req.body;
 
-  const trades = readTrades();
+  const now = new Date().toISOString();
   const newTrade = {
     id: crypto.randomBytes(8).toString('hex'),
     ticker: ticker.toUpperCase().trim(),
@@ -186,12 +294,13 @@ app.post('/api/trades', requireMod, (req, res) => {
     direction,
     entryPrice: parseFloat(entryPrice),
     stopLoss: parseFloat(stopLoss),
+    remainingPercent: 100,
     targets: targets.map(t => parseFloat(t)),
-    sector:         sector         || '',
+    sector:          sector          || '',
     confidenceLevel: confidenceLevel || '',
-    timeframe:      timeframe      || '',
-    reasoning:      reasoning      || '',
-    riskAnalysis:   riskAnalysis   || '',
+    timeframe:       timeframe       || '',
+    reasoning:       reasoning       || '',
+    riskAnalysis:    riskAnalysis    || '',
     status: 'open',
     actions: [{
       id: crypto.randomBytes(4).toString('hex'),
@@ -199,28 +308,29 @@ app.post('/api/trades', requireMod, (req, res) => {
       price: parseFloat(entryPrice),
       percentClosed: 0,
       note: reasoning || '',
-      date: new Date().toISOString()
+      date: now
     }],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    createdAt: now,
+    updatedAt: now
   };
 
-  trades.unshift(newTrade); // newest first
-  writeTrades(trades);
-  res.status(201).json(newTrade);
+  const saved = await createTrade(newTrade);
+  res.status(201).json(saved);
 });
 
 // PUT update trade details (mods only)
-app.put('/api/trades/:id', requireMod, (req, res) => {
-  const trades = readTrades();
-  const idx = trades.findIndex(t => t.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Trade not found' });
+app.put('/api/trades/:id', requireMod, async (req, res) => {
+  const trade = await getTrade(req.params.id);
+  if (!trade) return res.status(404).json({ error: 'Trade not found' });
 
   const { ticker, companyName, direction, entryPrice, stopLoss, targets,
           sector, confidenceLevel, timeframe, reasoning, riskAnalysis } = req.body;
 
-  trades[idx] = {
-    ...trades[idx],
+  const openAction = trade.actions.find(a => a.type === 'open');
+  if (openAction) openAction.price = parseFloat(entryPrice);
+
+  const updated = await updateTrade(req.params.id, {
+    ...trade,
     ticker: ticker.toUpperCase().trim(),
     companyName,
     direction,
@@ -231,41 +341,31 @@ app.put('/api/trades/:id', requireMod, (req, res) => {
     confidenceLevel: confidenceLevel || '',
     timeframe:       timeframe       || '',
     reasoning:       reasoning       || '',
-    riskAnalysis:    riskAnalysis    || '',
-    updatedAt: new Date().toISOString()
-  };
+    riskAnalysis:    riskAnalysis    || ''
+  });
 
-  // Keep the open action's price in sync
-  const openAction = trades[idx].actions.find(a => a.type === 'open');
-  if (openAction) openAction.price = parseFloat(entryPrice);
-
-  writeTrades(trades);
-  res.json(trades[idx]);
+  res.json(updated);
 });
 
 // DELETE trade (mods only)
-app.delete('/api/trades/:id', requireMod, (req, res) => {
-  const trades = readTrades();
-  const idx = trades.findIndex(t => t.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Trade not found' });
-
-  trades.splice(idx, 1);
-  writeTrades(trades);
+app.delete('/api/trades/:id', requireMod, async (req, res) => {
+  const trade = await getTrade(req.params.id);
+  if (!trade) return res.status(404).json({ error: 'Trade not found' });
+  await deleteTrade(req.params.id);
   res.json({ success: true });
 });
 
-// POST add action (partial/full close) to a trade (mods only)
-app.post('/api/trades/:id/actions', requireMod, (req, res) => {
-  const trades = readTrades();
-  const trade = trades.find(t => t.id === req.params.id);
+// POST add action (partial/full close / DCA) to a trade (mods only)
+app.post('/api/trades/:id/actions', requireMod, async (req, res) => {
+  const trade = await getTrade(req.params.id);
   if (!trade) return res.status(404).json({ error: 'Trade not found' });
 
   const { type, price, percentClosed, note } = req.body;
 
   // ── DCA: add to position ──────────────────────────────────
   if (type === 'add_position') {
-    const addPct    = Math.max(1, parseFloat(percentClosed) || 50);
-    const totalPct  = trade.remainingPercent + addPct;
+    const addPct   = Math.max(1, parseFloat(percentClosed) || 50);
+    const totalPct = trade.remainingPercent + addPct;
     const newAvgEntry =
       (trade.remainingPercent * trade.entryPrice + addPct * parseFloat(price)) / totalPct;
 
@@ -279,11 +379,11 @@ app.post('/api/trades/:id/actions', requireMod, (req, res) => {
       date: new Date().toISOString()
     });
 
-    trade.entryPrice      = parseFloat(newAvgEntry.toFixed(4));
+    trade.entryPrice       = parseFloat(newAvgEntry.toFixed(4));
     trade.remainingPercent = totalPct;
-    trade.updatedAt       = new Date().toISOString();
-    writeTrades(trades);
-    return res.json(trade);
+
+    const updated = await updateTrade(trade.id, trade);
+    return res.json(updated);
   }
 
   // ── Partial / full close ──────────────────────────────────
@@ -309,13 +409,12 @@ app.post('/api/trades/:id/actions', requireMod, (req, res) => {
 
   const newClosed = alreadyClosed + pctClosed;
   trade.status = newClosed >= 100 ? 'closed' : 'partial';
-  trade.updatedAt = new Date().toISOString();
 
-  writeTrades(trades);
-  res.json(trade);
+  const updated = await updateTrade(trade.id, trade);
+  res.json(updated);
 });
 
-// GET ticker info (company name, current price, sector) from Yahoo Finance
+// GET ticker info (company name, current price, sector)
 app.get('/api/ticker-info/:ticker', requireAuth, async (req, res) => {
   try {
     const ticker = req.params.ticker.toUpperCase();
@@ -334,7 +433,12 @@ app.get('/api/ticker-info/:ticker', requireAuth, async (req, res) => {
 });
 
 // ─── Start ────────────────────────────────────────────────────
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🐂 Bulls&Bears running on http://localhost:${PORT}`);
-  console.log(`📱 On your local network: http://<your-pc-ip>:${PORT}\n`);
+initDB().then(() => {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\nBulls&Bears running on http://localhost:${PORT}`);
+    console.log(`On your local network: http://<your-pc-ip>:${PORT}\n`);
+  });
+}).catch(err => {
+  console.error('Failed to initialize DB:', err);
+  process.exit(1);
 });
