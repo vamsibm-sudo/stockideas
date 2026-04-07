@@ -1,0 +1,40 @@
+[
+  {
+    "id": "f7c73f5a4366e619",
+    "ticker": "INTC",
+    "companyName": "Intel",
+    "currentPrice": 48,
+    "entryPrice": 41,
+    "targetPrice": 55,
+    "stopLoss": 25,
+    "action": "buy",
+    "confidenceLevel": "medium",
+    "sector": "technology",
+    "timeframe": "medium-term",
+    "reasoning": "Beat Down",
+    "riskAnalysis": "Start adding at 41 and DCA at 36 and 32",
+    "status": "active",
+    "createdAt": "2026-04-02T05:09:47.045Z",
+    "updatedAt": "2026-04-02T05:09:47.045Z",
+    "views": 0
+  },
+  {
+    "id": "4927b74098f50446",
+    "ticker": "NOW",
+    "companyName": "Service NOW",
+    "currentPrice": 105,
+    "entryPrice": 99,
+    "targetPrice": 170,
+    "stopLoss": 75,
+    "action": "buy",
+    "confidenceLevel": "medium",
+    "sector": "technology",
+    "timeframe": "medium-term",
+    "reasoning": "Post Split Beat Down . Start Adding at 99 and DCA at 85",
+    "riskAnalysis": "",
+    "status": "active",
+    "createdAt": "2026-04-02T05:10:55.846Z",
+    "updatedAt": "2026-04-02T05:10:55.846Z",
+    "views": 0
+  }
+]
