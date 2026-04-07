@@ -138,6 +138,81 @@ async function deleteTrade(id) {
   await pool.query('DELETE FROM trades WHERE id = $1', [id]);
 }
 
+// ─── Discord channel notifications ───────────────────────────
+const NOTIFY_CHANNEL = process.env.DISCORD_NOTIFY_CHANNEL;
+
+const ACTION_COLORS = {
+  open:          0x57F287, // green
+  add_position:  0x5865F2, // blurple
+  partial_close: 0xFEE75C, // yellow
+  full_close:    0xED4245, // red
+};
+
+async function notifyDiscord(embed) {
+  if (!process.env.DISCORD_BOT_TOKEN || !NOTIFY_CHANNEL) return;
+  try {
+    await fetch(`https://discord.com/api/channels/${NOTIFY_CHANNEL}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ embeds: [embed] })
+    });
+  } catch (err) {
+    console.error('Discord notify failed:', err.message);
+  }
+}
+
+function tradeEmbed(type, trade, action) {
+  const dirEmoji = trade.direction === 'BUY' ? '🟢' : '🔴';
+  const titles = {
+    open:          `${dirEmoji} New Trade Opened — ${trade.ticker}`,
+    add_position:  `📈 DCA Added — ${trade.ticker}`,
+    partial_close: `✂️ Partial Close — ${trade.ticker}`,
+    full_close:    `🏁 Trade Closed — ${trade.ticker}`,
+  };
+
+  const fields = [
+    { name: 'Company',   value: trade.companyName || trade.ticker, inline: true },
+    { name: 'Direction', value: trade.direction,                   inline: true },
+    { name: 'Entry',     value: `$${trade.entryPrice}`,            inline: true },
+  ];
+
+  if (type === 'open') {
+    if (trade.stopLoss)  fields.push({ name: 'Stop Loss', value: `$${trade.stopLoss}`, inline: true });
+    if (trade.targets?.length) fields.push({ name: 'Targets', value: trade.targets.map(t => `$${t}`).join(' → '), inline: true });
+    if (trade.confidenceLevel) fields.push({ name: 'Confidence', value: trade.confidenceLevel, inline: true });
+    if (trade.timeframe)       fields.push({ name: 'Timeframe',  value: trade.timeframe,        inline: true });
+    if (trade.sector)          fields.push({ name: 'Sector',     value: trade.sector,           inline: true });
+    if (trade.reasoning)       fields.push({ name: 'Reasoning',  value: trade.reasoning,        inline: false });
+  }
+
+  if (type === 'add_position' && action) {
+    fields.push({ name: 'Buy Price',  value: `$${action.price}`,        inline: true });
+    fields.push({ name: 'Size Added', value: `${action.percentAdded}%`, inline: true });
+    fields.push({ name: 'New Avg Entry', value: `$${trade.entryPrice}`, inline: true });
+  }
+
+  if ((type === 'partial_close' || type === 'full_close') && action) {
+    fields.push({ name: 'Exit Price', value: `$${action.price}`,         inline: true });
+    fields.push({ name: '% Closed',  value: `${action.percentClosed}%`, inline: true });
+    const dir = trade.direction === 'BUY' ? 1 : -1;
+    const pnl = (dir * (action.price - trade.entryPrice) / trade.entryPrice * 100).toFixed(2);
+    fields.push({ name: 'P&L on close', value: `${pnl > 0 ? '+' : ''}${pnl}%`, inline: true });
+  }
+
+  if (action?.note) fields.push({ name: 'Note', value: action.note, inline: false });
+
+  return {
+    title: titles[type] || type,
+    color: ACTION_COLORS[type] || 0x99AAB5,
+    fields,
+    footer: { text: 'Bulls & Bears' },
+    timestamp: new Date().toISOString()
+  };
+}
+
 // ─── Price cache (5 min TTL) ──────────────────────────────────
 const priceCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000;
@@ -315,6 +390,7 @@ app.post('/api/trades', requireMod, async (req, res) => {
   };
 
   const saved = await createTrade(newTrade);
+  notifyDiscord(tradeEmbed('open', saved, saved.actions[0]));
   res.status(201).json(saved);
 });
 
@@ -383,6 +459,8 @@ app.post('/api/trades/:id/actions', requireMod, async (req, res) => {
     trade.remainingPercent = totalPct;
 
     const updated = await updateTrade(trade.id, trade);
+    const addedAction = updated.actions[updated.actions.length - 1];
+    notifyDiscord(tradeEmbed('add_position', updated, addedAction));
     return res.json(updated);
   }
 
@@ -411,6 +489,8 @@ app.post('/api/trades/:id/actions', requireMod, async (req, res) => {
   trade.status = newClosed >= 100 ? 'closed' : 'partial';
 
   const updated = await updateTrade(trade.id, trade);
+  const closedAction = updated.actions[updated.actions.length - 1];
+  notifyDiscord(tradeEmbed(type, updated, closedAction));
   res.json(updated);
 });
 
