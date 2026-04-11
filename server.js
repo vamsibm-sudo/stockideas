@@ -149,9 +149,16 @@ const ACTION_COLORS = {
 };
 
 async function notifyDiscord(embed) {
-  if (!process.env.DISCORD_BOT_TOKEN || !NOTIFY_CHANNEL) return;
+  if (!process.env.DISCORD_BOT_TOKEN) {
+    console.error('Discord notify: DISCORD_BOT_TOKEN not set');
+    return;
+  }
+  if (!NOTIFY_CHANNEL) {
+    console.error('Discord notify: DISCORD_NOTIFY_CHANNEL not set');
+    return;
+  }
   try {
-    await fetch(`https://discord.com/api/channels/${NOTIFY_CHANNEL}/messages`, {
+    const r = await fetch(`https://discord.com/api/channels/${NOTIFY_CHANNEL}/messages`, {
       method: 'POST',
       headers: {
         Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
@@ -159,8 +166,12 @@ async function notifyDiscord(embed) {
       },
       body: JSON.stringify({ embeds: [embed] })
     });
+    if (!r.ok) {
+      const body = await r.text();
+      console.error(`Discord notify failed: ${r.status} ${r.statusText} — ${body}`);
+    }
   } catch (err) {
-    console.error('Discord notify failed:', err.message);
+    console.error('Discord notify error:', err.message);
   }
 }
 
