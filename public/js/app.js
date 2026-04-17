@@ -131,7 +131,6 @@ function renderRow(trade) {
       <td class="col-expand"><span class="expand-icon" id="icon-${trade.id}">▶</span></td>
       <td>
         <div class="trade-ticker">${trade.ticker}</div>
-        <div class="trade-company">${trade.companyName}</div>
       </td>
       <td><span class="dir-badge dir-${trade.direction.toLowerCase()}">${trade.direction}</span></td>
       <td>${fmtPrice(trade.entryPrice)}</td>
@@ -309,7 +308,10 @@ function renderCard(trade) {
 
       <div class="card-footer">
         <span class="card-date">${fmtDate(trade.createdAt)}${trade.createdBy ? ' · ' + trade.createdBy : ''}</span>
-        ${modActions}
+        <div class="card-footer-actions">
+          ${currentUser?.isMod && !trade.createdBy ? `<button class="btn-sm btn-ghost" onclick="claimTrade('${trade.id}',this)">Claim</button>` : ''}
+          ${modActions}
+        </div>
       </div>
     </div>`;
 }
@@ -346,7 +348,6 @@ function renderClosed(closed) {
         <td class="col-expand"><span class="expand-icon" id="cicon-${trade.id}">▶</span></td>
         <td>
           <div class="trade-ticker">${trade.ticker}</div>
-          <div class="trade-company">${trade.companyName}</div>
         </td>
         <td><span class="dir-badge dir-${trade.direction.toLowerCase()}">${trade.direction}</span></td>
         <td>${fmtPrice(trade.entryPrice)}</td>
@@ -622,6 +623,14 @@ async function handleDelete() {
   const res = await fetch(`/api/trades/${deletingId}`, { method: 'DELETE' });
   if (res.ok) { closeModal('deleteModal'); loadTrades(); }
   else alert('Error deleting trade. Please try again.');
+}
+
+async function claimTrade(id, btn) {
+  btn.disabled = true;
+  btn.textContent = '...';
+  const res = await fetch(`/api/trades/${id}/claim`, { method: 'PATCH' });
+  if (res.ok) { loadTrades(); }
+  else { btn.disabled = false; btn.textContent = 'Claim'; alert('Failed to claim trade.'); }
 }
 
 // ─── Init ─────────────────────────────────────────────────────

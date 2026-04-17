@@ -513,6 +513,16 @@ app.post('/api/trades/:id/actions', requireMod, async (req, res) => {
   res.json(updated);
 });
 
+// PATCH claim trade authorship (mods only, only if createdBy is null)
+app.patch('/api/trades/:id/claim', requireMod, async (req, res) => {
+  const trade = await getTrade(req.params.id);
+  if (!trade) return res.status(404).json({ error: 'Trade not found' });
+
+  const name = req.user.displayName || req.user.username;
+  await pool.query('UPDATE trades SET created_by = $1 WHERE id = $2', [name, req.params.id]);
+  res.json({ success: true, createdBy: name });
+});
+
 // GET ticker info (company name, current price, sector)
 app.get('/api/ticker-info/:ticker', requireAuth, async (req, res) => {
   try {
