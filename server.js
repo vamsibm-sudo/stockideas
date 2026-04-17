@@ -40,10 +40,12 @@ async function initDB() {
       risk_analysis    TEXT,
       status           TEXT DEFAULT 'open',
       actions          JSONB DEFAULT '[]',
+      created_by       TEXT,
       created_at       TIMESTAMPTZ DEFAULT NOW(),
       updated_at       TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  await pool.query(`ALTER TABLE trades ADD COLUMN IF NOT EXISTS created_by TEXT`);
   console.log('DB ready');
 }
 
@@ -65,6 +67,7 @@ function rowToTrade(row) {
     riskAnalysis:     row.risk_analysis,
     status:           row.status,
     actions:          row.actions,
+    createdBy:        row.created_by,
     createdAt:        row.created_at,
     updatedAt:        row.updated_at
   };
@@ -85,8 +88,8 @@ async function createTrade(t) {
     `INSERT INTO trades
       (id, ticker, company_name, direction, entry_price, stop_loss, remaining_percent,
        targets, sector, confidence_level, timeframe, reasoning, risk_analysis,
-       status, actions, created_at, updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+       status, actions, created_by, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
      RETURNING *`,
     [
       t.id, t.ticker, t.companyName, t.direction,
@@ -94,7 +97,7 @@ async function createTrade(t) {
       JSON.stringify(t.targets),
       t.sector, t.confidenceLevel, t.timeframe, t.reasoning, t.riskAnalysis,
       t.status, JSON.stringify(t.actions),
-      t.createdAt, t.updatedAt
+      t.createdBy, t.createdAt, t.updatedAt
     ]
   );
   return rowToTrade(rows[0]);
@@ -117,7 +120,8 @@ async function updateTrade(id, fields) {
       risk_analysis    = $13,
       status           = $14,
       actions          = $15,
-      updated_at       = $16
+      updated_at       = $16,
+      created_by       = $17
      WHERE id = $1
      RETURNING *`,
     [
@@ -128,7 +132,8 @@ async function updateTrade(id, fields) {
       fields.sector, fields.confidenceLevel, fields.timeframe,
       fields.reasoning, fields.riskAnalysis,
       fields.status, JSON.stringify(fields.actions),
-      new Date().toISOString()
+      new Date().toISOString(),
+      fields.createdBy
     ]
   );
   return rows.length ? rowToTrade(rows[0]) : null;
@@ -398,6 +403,7 @@ app.post('/api/trades', requireMod, async (req, res) => {
       note: reasoning || '',
       date: now
     }],
+    createdBy: req.user.displayName || req.user.username,
     createdAt: now,
     updatedAt: now
   };

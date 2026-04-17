@@ -308,7 +308,7 @@ function renderCard(trade) {
       </div>
 
       <div class="card-footer">
-        <span class="card-date">${fmtDate(trade.createdAt)}</span>
+        <span class="card-date">${fmtDate(trade.createdAt)}${trade.createdBy ? ' · ' + trade.createdBy : ''}</span>
         ${modActions}
       </div>
     </div>`;
