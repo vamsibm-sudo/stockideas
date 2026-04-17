@@ -39,7 +39,7 @@ async function checkAuth() {
 
       document.getElementById('loginScreen').classList.add('hidden');
       document.getElementById('app').classList.remove('app-hidden');
-      document.getElementById('navUsername').textContent = currentUser.username;
+      document.getElementById('navUsername').textContent = currentUser.displayName || currentUser.username;
 
       if (currentUser.isMod) {
         document.querySelectorAll('.mod-only').forEach(el => el.classList.remove('mod-only'));

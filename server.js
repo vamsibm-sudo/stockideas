@@ -214,12 +214,13 @@ function tradeEmbed(type, trade, action, username) {
   }
 
   if (action?.note) fields.push({ name: 'Note', value: action.note, inline: false });
+  if (username)     fields.push({ name: 'Posted by', value: username, inline: true });
 
   return {
     title: titles[type] || type,
     color: ACTION_COLORS[type] || 0x99AAB5,
     fields,
-    footer: { text: `Bulls & Bears${username ? ` • Posted by ${username}` : ''}` },
+    footer: { text: 'Bulls & Bears' },
     timestamp: new Date().toISOString()
   };
 }
@@ -309,7 +310,8 @@ passport.use(new DiscordStrategy({
 
     if (!isMod && !isMember) return done(null, false);
 
-    return done(null, { id: profile.id, username: profile.username, isMod });
+    const displayName = profile.global_name || profile.displayName || profile.username;
+    return done(null, { id: profile.id, username: profile.username, displayName, isMod });
   } catch (err) {
     return done(err);
   }
@@ -401,7 +403,7 @@ app.post('/api/trades', requireMod, async (req, res) => {
   };
 
   const saved = await createTrade(newTrade);
-  notifyDiscord(tradeEmbed('open', saved, saved.actions[0], req.user.username));
+  notifyDiscord(tradeEmbed('open', saved, saved.actions[0], req.user.displayName));
   res.status(201).json(saved);
 });
 
@@ -471,7 +473,7 @@ app.post('/api/trades/:id/actions', requireMod, async (req, res) => {
 
     const updated = await updateTrade(trade.id, trade);
     const addedAction = updated.actions[updated.actions.length - 1];
-    notifyDiscord(tradeEmbed('add_position', updated, addedAction, req.user.username));
+    notifyDiscord(tradeEmbed('add_position', updated, addedAction, req.user.displayName));
     return res.json(updated);
   }
 
@@ -501,7 +503,7 @@ app.post('/api/trades/:id/actions', requireMod, async (req, res) => {
 
   const updated = await updateTrade(trade.id, trade);
   const closedAction = updated.actions[updated.actions.length - 1];
-  notifyDiscord(tradeEmbed(type, updated, closedAction, req.user.username));
+  notifyDiscord(tradeEmbed(type, updated, closedAction, req.user.displayName));
   res.json(updated);
 });
 
