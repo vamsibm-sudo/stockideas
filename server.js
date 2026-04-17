@@ -175,7 +175,7 @@ async function notifyDiscord(embed) {
   }
 }
 
-function tradeEmbed(type, trade, action) {
+function tradeEmbed(type, trade, action, username) {
   const dirEmoji = trade.direction === 'BUY' ? '🟢' : '🔴';
   const titles = {
     open:          `${dirEmoji} New Trade Opened — ${trade.ticker}`,
@@ -219,7 +219,7 @@ function tradeEmbed(type, trade, action) {
     title: titles[type] || type,
     color: ACTION_COLORS[type] || 0x99AAB5,
     fields,
-    footer: { text: 'Bulls & Bears' },
+    footer: { text: `Bulls & Bears${username ? ` • Posted by ${username}` : ''}` },
     timestamp: new Date().toISOString()
   };
 }
@@ -401,7 +401,7 @@ app.post('/api/trades', requireMod, async (req, res) => {
   };
 
   const saved = await createTrade(newTrade);
-  notifyDiscord(tradeEmbed('open', saved, saved.actions[0]));
+  notifyDiscord(tradeEmbed('open', saved, saved.actions[0], req.user.username));
   res.status(201).json(saved);
 });
 
@@ -471,7 +471,7 @@ app.post('/api/trades/:id/actions', requireMod, async (req, res) => {
 
     const updated = await updateTrade(trade.id, trade);
     const addedAction = updated.actions[updated.actions.length - 1];
-    notifyDiscord(tradeEmbed('add_position', updated, addedAction));
+    notifyDiscord(tradeEmbed('add_position', updated, addedAction, req.user.username));
     return res.json(updated);
   }
 
@@ -501,7 +501,7 @@ app.post('/api/trades/:id/actions', requireMod, async (req, res) => {
 
   const updated = await updateTrade(trade.id, trade);
   const closedAction = updated.actions[updated.actions.length - 1];
-  notifyDiscord(tradeEmbed(type, updated, closedAction));
+  notifyDiscord(tradeEmbed(type, updated, closedAction, req.user.username));
   res.json(updated);
 });
 
