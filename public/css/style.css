@@ -128,6 +128,77 @@ html, body {
 
 .nav-menu { display: flex; gap: 1.25rem; align-items: center; }
 
+.nav-sections {
+  display: flex;
+  gap: .25rem;
+}
+.nav-section {
+  padding: .4rem 1.1rem;
+  border: none;
+  background: transparent;
+  color: var(--gray-600);
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: .9rem;
+  font-weight: 500;
+  transition: background .15s, color .15s;
+}
+.nav-section:hover { background: var(--gray-100); color: var(--gray-900); }
+.nav-section.active { background: var(--primary); color: white; }
+
+.section-hidden { display: none; }
+.dir-neutral { background: #e2e8f0; color: #475569; }
+
+/* ─── Challenge styles ───────────────────────────────────────── */
+.section-title { font-size: 1.2rem; font-weight: 700; color: var(--gray-900); }
+
+.challenge-card { cursor: pointer; transition: box-shadow .2s, transform .2s; }
+.challenge-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+
+.challenge-progress-bar {
+  height: 10px;
+  background: var(--gray-200);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.challenge-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--success));
+  border-radius: 99px;
+  transition: width .4s ease;
+  min-width: 2px;
+}
+.challenge-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: .8rem;
+  color: var(--gray-600);
+}
+
+.challenge-progress-card {
+  background: white;
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+}
+.challenge-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: .75rem;
+}
+.challenge-bal-label { display: block; font-size: .75rem; color: var(--gray-400); }
+.challenge-bal { font-size: 1.4rem; font-weight: 700; color: var(--gray-900); }
+.challenge-progress-pct { font-size: 1.75rem; font-weight: 800; color: var(--primary); }
+.challenge-progress-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: .5rem;
+  font-size: .8rem;
+  color: var(--gray-600);
+}
+
 .nav-username { color: var(--gray-600); font-weight: 500; }
 
 .nav-link {

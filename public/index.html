@@ -34,6 +34,11 @@
                 <div class="nav-brand">
                     <img src="logo.jpeg" alt="Bulls&Bears" class="logo-img"> Bulls&amp;Bears
                 </div>
+                <div class="nav-sections">
+                    <button class="nav-section active" data-section="stocksSection">Stocks</button>
+                    <button class="nav-section" data-section="optionsSection">Options</button>
+                    <button class="nav-section" data-section="challengesSection">Challenges</button>
+                </div>
                 <div class="nav-menu">
                     <span id="navUsername" class="nav-username"></span>
                     <a href="/auth/logout" class="nav-link logout">Logout</a>
@@ -41,6 +46,8 @@
             </div>
         </nav>
 
+        <!-- ══ STOCKS SECTION ══ -->
+        <div id="stocksSection">
         <div class="container main-content">
 
             <!-- Stats bar -->
@@ -157,6 +164,165 @@
             </div><!-- .content-with-panel -->
 
         </div><!-- .container -->
+        </div><!-- #stocksSection -->
+
+        <!-- ══ OPTIONS SECTION ══ -->
+        <div id="optionsSection" class="section-hidden">
+        <div class="container main-content">
+
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span class="stat-value" id="oStatOpen">—</span>
+                    <span class="stat-label">Open</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-value" id="oStatClosed">—</span>
+                    <span class="stat-label">Closed</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-value" id="oStatPnl">—</span>
+                    <span class="stat-label">Realized P&amp;L</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <input type="text" id="oSearchInput" placeholder="Search ticker…" class="search-box">
+                <select id="oFilterStatus" class="filter-select">
+                    <option value="">All Status</option>
+                    <option value="open">Open</option>
+                    <option value="closed">Closed</option>
+                </select>
+                <button id="addOptionBtn" class="btn btn-primary mod-only">+ Add Option</button>
+            </div>
+
+            <div class="view-tabs">
+                <button class="view-tab active" data-oview="oCardView">Cards</button>
+                <button class="view-tab" data-oview="oTableView">Table</button>
+            </div>
+
+            <div class="content-with-panel">
+                <div class="content-main">
+                    <div id="oCardView" class="view-panel">
+                        <div id="oCardsGrid" class="cards-grid">
+                            <div class="loading-cell">Loading options…</div>
+                        </div>
+                    </div>
+                    <div id="oTableView" class="view-panel view-panel-hidden">
+                        <div class="table-wrap">
+                            <table class="trades-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ticker</th>
+                                        <th>Type</th>
+                                        <th>Strike</th>
+                                        <th>Expiry</th>
+                                        <th>Premium</th>
+                                        <th>Contracts</th>
+                                        <th>Target</th>
+                                        <th>Stop</th>
+                                        <th>P&amp;L %</th>
+                                        <th>P&amp;L $</th>
+                                        <th>Status</th>
+                                        <th class="mod-only col-actions">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="oTableBody">
+                                    <tr><td colspan="12" class="loading-cell">Loading…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <aside class="activity-panel">
+                    <div class="activity-header">
+                        <span class="activity-title">Activity</span>
+                        <span class="activity-count" id="oActivityCount"></span>
+                    </div>
+                    <div class="activity-list" id="oActivityList">
+                        <div class="activity-loading">Loading…</div>
+                    </div>
+                </aside>
+            </div>
+
+        </div><!-- .container -->
+        </div><!-- #optionsSection -->
+
+        <!-- ══ CHALLENGES SECTION ══ -->
+        <div id="challengesSection" class="section-hidden">
+        <div class="container main-content">
+
+            <!-- Challenge list view -->
+            <div id="challengeListView">
+                <div class="controls">
+                    <h2 class="section-title">Challenges</h2>
+                    <button id="addChallengeBtn" class="btn btn-primary mod-only">+ New Challenge</button>
+                </div>
+                <div id="challengeCards" class="cards-grid">
+                    <div class="loading-cell">Loading challenges…</div>
+                </div>
+            </div>
+
+            <!-- Single challenge detail view -->
+            <div id="challengeDetailView" class="section-hidden">
+                <div class="controls">
+                    <button class="btn btn-secondary" id="backToChallengesBtn">← Back</button>
+                    <h2 class="section-title" id="challengeDetailName"></h2>
+                    <button id="addChallengeTradeBtn" class="btn btn-primary mod-only">+ Add Trade</button>
+                </div>
+
+                <!-- Progress bar -->
+                <div class="challenge-progress-card">
+                    <div class="challenge-progress-header">
+                        <div>
+                            <span class="challenge-bal-label">Current</span>
+                            <span class="challenge-bal" id="cdCurrentBal">—</span>
+                        </div>
+                        <div class="challenge-progress-pct" id="cdProgressPct">0%</div>
+                        <div>
+                            <span class="challenge-bal-label">Target</span>
+                            <span class="challenge-bal" id="cdTargetBal">—</span>
+                        </div>
+                    </div>
+                    <div class="challenge-progress-bar">
+                        <div class="challenge-progress-fill" id="cdProgressFill"></div>
+                    </div>
+                    <div class="challenge-progress-footer">
+                        <span id="cdStartBal"></span>
+                        <span id="cdStatus"></span>
+                        <span id="cdPnlTotal"></span>
+                    </div>
+                </div>
+
+                <!-- Trade tabs -->
+                <div class="view-tabs">
+                    <button class="view-tab active" data-ctview="ctCardView">Cards</button>
+                    <button class="view-tab" data-ctview="ctTableView">Table</button>
+                </div>
+                <div id="ctCardView" class="view-panel">
+                    <div id="ctCardsGrid" class="cards-grid"></div>
+                </div>
+                <div id="ctTableView" class="view-panel view-panel-hidden">
+                    <div class="table-wrap">
+                        <table class="trades-table">
+                            <thead>
+                                <tr>
+                                    <th>Ticker</th><th>Type</th><th>Strike</th><th>Expiry</th>
+                                    <th>Premium</th><th>Contracts</th><th>Target</th><th>Stop</th>
+                                    <th>P&amp;L %</th><th>P&amp;L $</th><th>Status</th>
+                                    <th class="mod-only col-actions">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ctTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- .container -->
+        </div><!-- #challengesSection -->
 
         <footer class="footer">
             <p>&copy; 2026 Bulls&amp;Bears Trading Platform. Prices from Yahoo Finance. 📈</p>
@@ -306,6 +472,262 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" data-close="deleteModal">Cancel</button>
                 <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Add / Edit Option Modal ── -->
+    <div id="optionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="optionModalTitle">Add Option Trade</h2>
+                <button class="close-btn" data-close="optionModal">&times;</button>
+            </div>
+            <form id="optionForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ticker *</label>
+                        <input type="text" id="of-ticker" placeholder="AAPL" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Type *</label>
+                        <select id="of-direction" required>
+                            <option value="CALL">CALL</option>
+                            <option value="PUT">PUT</option>
+                            <option value="SPREAD">SPREAD</option>
+                            <option value="STRADDLE">STRADDLE</option>
+                            <option value="STRANGLE">STRANGLE</option>
+                            <option value="IRON CONDOR">IRON CONDOR</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Strike Price *</label>
+                        <input type="number" id="of-strike" step="0.5" min="0" placeholder="150.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Expiry Date *</label>
+                        <input type="date" id="of-expiry" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Premium (per contract) *</label>
+                        <input type="number" id="of-premium" step="0.01" min="0" placeholder="3.50" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contracts *</label>
+                        <input type="number" id="of-contracts" min="1" value="1" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Target Premium</label>
+                        <input type="number" id="of-target" step="0.01" min="0" placeholder="7.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Stop Loss Premium</label>
+                        <input type="number" id="of-stop" step="0.01" min="0" placeholder="1.50">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Reasoning</label>
+                    <textarea id="of-reasoning" rows="3" placeholder="Why this trade?"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close="optionModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Close Option Modal ── -->
+    <div id="closeOptionModal" class="modal">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h2>Close Option — <span id="closeOptionTicker"></span></h2>
+                <button class="close-btn" data-close="closeOptionModal">&times;</button>
+            </div>
+            <form id="closeOptionForm">
+                <div class="form-group">
+                    <label>Exit Premium *</label>
+                    <input type="number" id="co-exitPremium" step="0.01" min="0" placeholder="6.50" required>
+                </div>
+                <div class="form-group">
+                    <label>Note</label>
+                    <textarea id="co-note" rows="2" placeholder="Reason for closing…"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close="closeOptionModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Close Trade</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Delete Option Modal ── -->
+    <div id="deleteOptionModal" class="modal">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h2>Delete Option</h2>
+                <button class="close-btn" data-close="deleteOptionModal">&times;</button>
+            </div>
+            <p class="delete-msg">Delete <strong id="deleteOptionName"></strong>? This cannot be undone.</p>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close="deleteOptionModal">Cancel</button>
+                <button class="btn btn-danger" id="confirmDeleteOptionBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── New / Edit Challenge Modal ── -->
+    <div id="challengeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="challengeModalTitle">New Challenge</h2>
+                <button class="close-btn" data-close="challengeModal">&times;</button>
+            </div>
+            <form id="challengeForm">
+                <div class="form-group">
+                    <label>Challenge Name *</label>
+                    <input type="text" id="ch-name" placeholder="1k to 5k Challenge" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Starting Balance ($) *</label>
+                        <input type="number" id="ch-start" step="0.01" min="1" placeholder="1000" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Target Balance ($) *</label>
+                        <input type="number" id="ch-target" step="0.01" min="1" placeholder="5000" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Date</label>
+                        <input type="date" id="ch-startdate">
+                    </div>
+                    <div class="form-group">
+                        <label>End Date</label>
+                        <input type="date" id="ch-enddate">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="ch-desc" rows="2" placeholder="What's this challenge about?"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close="challengeModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Add / Edit Challenge Trade Modal ── -->
+    <div id="challengeTradeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="challengeTradeModalTitle">Add Trade</h2>
+                <button class="close-btn" data-close="challengeTradeModal">&times;</button>
+            </div>
+            <form id="challengeTradeForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ticker *</label>
+                        <input type="text" id="ct-ticker" placeholder="AAPL" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Type *</label>
+                        <select id="ct-direction" required>
+                            <option value="CALL">CALL</option>
+                            <option value="PUT">PUT</option>
+                            <option value="SPREAD">SPREAD</option>
+                            <option value="STRADDLE">STRADDLE</option>
+                            <option value="STRANGLE">STRANGLE</option>
+                            <option value="IRON CONDOR">IRON CONDOR</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Strike *</label>
+                        <input type="number" id="ct-strike" step="0.5" min="0" placeholder="150.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Expiry Date *</label>
+                        <input type="date" id="ct-expiry" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Premium (per contract) *</label>
+                        <input type="number" id="ct-premium" step="0.01" min="0" placeholder="3.50" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contracts *</label>
+                        <input type="number" id="ct-contracts" min="1" value="1" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Target Premium</label>
+                        <input type="number" id="ct-target" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Stop Loss Premium</label>
+                        <input type="number" id="ct-stop" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Reasoning</label>
+                    <textarea id="ct-reasoning" rows="2" placeholder="Why this trade?"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close="challengeTradeModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Close Challenge Trade Modal ── -->
+    <div id="closeChallengeTradeModal" class="modal">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h2>Close Trade — <span id="closeCTTicker"></span></h2>
+                <button class="close-btn" data-close="closeChallengeTradeModal">&times;</button>
+            </div>
+            <form id="closeChallengeTradeForm">
+                <div class="form-group">
+                    <label>Exit Premium *</label>
+                    <input type="number" id="cct-exitPremium" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Note</label>
+                    <textarea id="cct-note" rows="2"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close="closeChallengeTradeModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Close Trade</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Delete Challenge Modal ── -->
+    <div id="deleteChallengeModal" class="modal">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h2>Delete Challenge</h2>
+                <button class="close-btn" data-close="deleteChallengeModal">&times;</button>
+            </div>
+            <p class="delete-msg">Delete <strong id="deleteChallengeName"></strong>? All trades will be lost.</p>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close="deleteChallengeModal">Cancel</button>
+                <button class="btn btn-danger" id="confirmDeleteChallengeBtn">Delete</button>
             </div>
         </div>
     </div>

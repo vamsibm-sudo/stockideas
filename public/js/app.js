@@ -633,49 +633,583 @@ async function claimTrade(id, btn) {
   else { btn.disabled = false; btn.textContent = 'Claim'; alert('Failed to claim trade.'); }
 }
 
+// ─── Options state ────────────────────────────────────────────
+let allOptions    = [];
+let editingOptId  = null;
+let closingOptId  = null;
+let deletingOptId = null;
+
+async function loadOptions() {
+  try {
+    const res  = await fetch('/api/options');
+    allOptions = await res.json();
+    applyOptionFilters();
+    renderOptionActivity();
+    updateOptionStats();
+  } catch {
+    document.getElementById('oCardsGrid').innerHTML = '<div class="loading-cell">Failed to load options.</div>';
+  }
+}
+
+function updateOptionStats() {
+  const open   = allOptions.filter(o => o.status === 'open').length;
+  const closed  = allOptions.filter(o => o.status === 'closed').length;
+  const pnlSum  = allOptions.filter(o => o.realizedPnlPct != null)
+    .reduce((s, o) => s + o.realizedPnlPct, 0);
+  document.getElementById('oStatOpen').textContent   = open;
+  document.getElementById('oStatClosed').textContent = closed;
+  document.getElementById('oStatPnl').textContent    = closed ? (pnlSum >= 0 ? '+' : '') + pnlSum.toFixed(2) + '%' : '—';
+}
+
+function applyOptionFilters() {
+  const q      = document.getElementById('oSearchInput').value.toLowerCase();
+  const status = document.getElementById('oFilterStatus').value;
+  const filtered = allOptions.filter(o => {
+    const matchQ = !q || o.ticker.toLowerCase().includes(q);
+    const matchS = !status || o.status === status;
+    return matchQ && matchS;
+  });
+  renderOptionCards(filtered);
+  renderOptionTable(filtered);
+}
+
+function dirBadgeClass(dir) {
+  if (dir === 'CALL') return 'dir-buy';
+  if (dir === 'PUT')  return 'dir-sell';
+  return 'dir-neutral';
+}
+
+function renderOptionCards(options) {
+  const grid = document.getElementById('oCardsGrid');
+  if (!options.length) {
+    grid.innerHTML = '<div class="empty-state">No options trades found.</div>';
+    return;
+  }
+  grid.innerHTML = options.map(o => {
+    const isClosed = o.status === 'closed';
+    const modActions = currentUser?.isMod ? `
+      <button class="btn-sm btn-outline" onclick="openEditOptionModal('${o.id}')">Edit</button>
+      ${!isClosed ? `<button class="btn-sm btn-primary" onclick="openCloseOptionModal('${o.id}')">Close</button>` : ''}
+      <button class="btn-sm btn-danger" onclick="openDeleteOptionModal('${o.id}')">Del</button>` : '';
+    return `<div class="trade-card ${isClosed ? 'card-closed' : ''}">
+      <div class="card-header">
+        <div class="card-ticker">${o.ticker}</div>
+        <span class="dir-badge ${dirBadgeClass(o.direction)}">${o.direction}</span>
+        <span class="status-badge status-${o.status}">${o.status}</span>
+      </div>
+      <div class="card-grid-row">
+        <div class="card-cell"><span class="card-cell-label">Strike</span><span class="card-cell-value">$${o.strike}</span></div>
+        <div class="card-cell"><span class="card-cell-label">Expiry</span><span class="card-cell-value card-cell-sm">${o.expiryDate ? new Date(o.expiryDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</span></div>
+        <div class="card-cell"><span class="card-cell-label">Contracts</span><span class="card-cell-value">${o.contracts}</span></div>
+      </div>
+      <div class="card-grid-row">
+        <div class="card-cell"><span class="card-cell-label">Premium</span><span class="card-cell-value">$${o.premium}</span></div>
+        <div class="card-cell"><span class="card-cell-label">Target</span><span class="card-cell-value">${o.target ? '$'+o.target : '—'}</span></div>
+        <div class="card-cell"><span class="card-cell-label">Stop</span><span class="card-cell-value">${o.stopLoss ? '$'+o.stopLoss : '—'}</span></div>
+      </div>
+      ${isClosed ? `<div class="card-grid-row card-grid-row-last">
+        <div class="card-cell"><span class="card-cell-label">Exit Premium</span><span class="card-cell-value">$${o.exitPremium}</span></div>
+        <div class="card-cell"><span class="card-cell-label">P&L %</span><span class="card-cell-value ${pnlClass(o.realizedPnlPct)}">${fmtPnl(o.realizedPnlPct)}</span></div>
+        <div class="card-cell"><span class="card-cell-label">P&L $</span><span class="card-cell-value ${pnlClass(o.realizedPnlDollar)}">${o.realizedPnlDollar != null ? (o.realizedPnlDollar>=0?'+':'')+'$'+Math.abs(o.realizedPnlDollar).toFixed(2) : '—'}</span></div>
+      </div>` : ''}
+      <div class="card-footer">
+        <span class="card-date">${fmtDate(o.createdAt)}${o.createdBy ? ' · '+o.createdBy : ''}</span>
+        <div class="card-footer-actions">${modActions}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderOptionTable(options) {
+  const tbody = document.getElementById('oTableBody');
+  const cols = currentUser?.isMod ? 12 : 11;
+  if (!options.length) {
+    tbody.innerHTML = `<tr><td colspan="${cols}"><div class="empty-state">No options trades found.</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = options.map(o => {
+    const modCells = currentUser?.isMod ? `
+      <td class="action-cell" onclick="event.stopPropagation()">
+        <button class="btn-sm btn-outline" onclick="openEditOptionModal('${o.id}')">Edit</button>
+        ${o.status==='open' ? `<button class="btn-sm btn-primary" onclick="openCloseOptionModal('${o.id}')">Close</button>` : ''}
+        <button class="btn-sm btn-danger" onclick="openDeleteOptionModal('${o.id}')">Del</button>
+      </td>` : '';
+    return `<tr>
+      <td><div class="trade-ticker">${o.ticker}</div></td>
+      <td><span class="dir-badge ${dirBadgeClass(o.direction)}">${o.direction}</span></td>
+      <td>$${o.strike}</td>
+      <td>${o.expiryDate ? new Date(o.expiryDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}) : '—'}</td>
+      <td>$${o.premium}</td>
+      <td>${o.contracts}</td>
+      <td>${o.target ? '$'+o.target : '—'}</td>
+      <td>${o.stopLoss ? '$'+o.stopLoss : '—'}</td>
+      <td class="${pnlClass(o.realizedPnlPct)} pnl-cell">${fmtPnl(o.realizedPnlPct)}</td>
+      <td class="${pnlClass(o.realizedPnlDollar)} pnl-cell">${o.realizedPnlDollar != null ? (o.realizedPnlDollar>=0?'+':'')+'$'+Math.abs(o.realizedPnlDollar).toFixed(2) : '—'}</td>
+      <td><span class="status-badge status-${o.status}">${o.status}</span></td>
+      ${modCells}
+    </tr>`;
+  }).join('');
+}
+
+function renderOptionActivity() {
+  const list  = document.getElementById('oActivityList');
+  const count = document.getElementById('oActivityCount');
+  const sorted = [...allOptions].sort((a,b) => new Date(b.updatedAt)-new Date(a.updatedAt));
+  count.textContent = allOptions.length;
+  if (!sorted.length) { list.innerHTML = '<div class="activity-loading">No activity yet.</div>'; return; }
+  list.innerHTML = sorted.map(o => {
+    const action = o.status === 'closed' ? 'Closed' : 'Opened';
+    return `<div class="activity-item">
+      <div class="activity-dot dot-${o.status === 'closed' ? 'close' : 'open'}"></div>
+      <div class="activity-info">
+        <span class="activity-trade">${o.ticker} ${o.direction} — ${action}</span>
+        <span class="activity-date">${fmtDate(o.updatedAt)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openAddOptionModal() {
+  editingOptId = null;
+  document.getElementById('optionModalTitle').textContent = 'Add Option Trade';
+  document.getElementById('optionForm').reset();
+  openModal('optionModal');
+}
+
+function openEditOptionModal(id) {
+  const o = allOptions.find(x => x.id === id);
+  if (!o) return;
+  editingOptId = id;
+  document.getElementById('optionModalTitle').textContent = 'Edit Option Trade';
+  document.getElementById('of-ticker').value    = o.ticker;
+  document.getElementById('of-direction').value = o.direction;
+  document.getElementById('of-strike').value    = o.strike;
+  document.getElementById('of-expiry').value    = o.expiryDate ? o.expiryDate.toString().slice(0,10) : '';
+  document.getElementById('of-premium').value   = o.premium;
+  document.getElementById('of-contracts').value = o.contracts;
+  document.getElementById('of-target').value    = o.target    || '';
+  document.getElementById('of-stop').value      = o.stopLoss  || '';
+  document.getElementById('of-reasoning').value = o.reasoning || '';
+  openModal('optionModal');
+}
+
+async function handleOptionSubmit(e) {
+  e.preventDefault();
+  const body = {
+    ticker:    document.getElementById('of-ticker').value,
+    direction: document.getElementById('of-direction').value,
+    strike:    document.getElementById('of-strike').value,
+    expiryDate:document.getElementById('of-expiry').value,
+    premium:   document.getElementById('of-premium').value,
+    contracts: document.getElementById('of-contracts').value,
+    target:    document.getElementById('of-target').value    || null,
+    stopLoss:  document.getElementById('of-stop').value      || null,
+    reasoning: document.getElementById('of-reasoning').value || ''
+  };
+  const url    = editingOptId ? `/api/options/${editingOptId}` : '/api/options';
+  const method = editingOptId ? 'PUT' : 'POST';
+  const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) { closeModal('optionModal'); loadOptions(); }
+  else { const d = await res.json(); alert(d.error || 'Error saving option trade.'); }
+}
+
+function openCloseOptionModal(id) {
+  const o = allOptions.find(x => x.id === id);
+  if (!o) return;
+  closingOptId = id;
+  document.getElementById('closeOptionTicker').textContent = `${o.ticker} ${o.direction}`;
+  document.getElementById('closeOptionForm').reset();
+  openModal('closeOptionModal');
+}
+
+async function handleCloseOptionSubmit(e) {
+  e.preventDefault();
+  const body = {
+    exitPremium: document.getElementById('co-exitPremium').value,
+    note:        document.getElementById('co-note').value
+  };
+  const res = await fetch(`/api/options/${closingOptId}/close`, {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (res.ok) { closeModal('closeOptionModal'); loadOptions(); }
+  else alert('Error closing option trade.');
+}
+
+function openDeleteOptionModal(id) {
+  const o = allOptions.find(x => x.id === id);
+  if (!o) return;
+  deletingOptId = id;
+  document.getElementById('deleteOptionName').textContent = `${o.ticker} ${o.direction}`;
+  openModal('deleteOptionModal');
+}
+
+async function handleDeleteOption() {
+  const res = await fetch(`/api/options/${deletingOptId}`, { method: 'DELETE' });
+  if (res.ok) { closeModal('deleteOptionModal'); loadOptions(); }
+  else alert('Error deleting option trade.');
+}
+
+// ─── Challenges state ─────────────────────────────────────────
+let allChallenges       = [];
+let activeChallengeId   = null;
+let activeChallenge     = null;
+let editingChallengeId  = null;
+let editingCTId         = null;
+let closingCTId         = null;
+let deletingChallengeId = null;
+
+async function loadChallenges() {
+  const res = await fetch('/api/challenges');
+  allChallenges = await res.json();
+  renderChallengeCards();
+}
+
+async function loadChallengeDetail(id) {
+  const res  = await fetch(`/api/challenges/${id}`);
+  activeChallenge = await res.json();
+  activeChallengeId = id;
+  document.getElementById('challengeListView').classList.add('section-hidden');
+  document.getElementById('challengeDetailView').classList.remove('section-hidden');
+  renderChallengeDetail();
+}
+
+function renderChallengeCards() {
+  const grid = document.getElementById('challengeCards');
+  if (!allChallenges.length) {
+    grid.innerHTML = '<div class="empty-state">No challenges yet. Create the first one!</div>';
+    return;
+  }
+  grid.innerHTML = allChallenges.map(ch => {
+    const pct     = Math.min(100, ((ch.currentBalance - ch.startingBalance) / (ch.targetBalance - ch.startingBalance)) * 100);
+    const pnl     = ch.currentBalance - ch.startingBalance;
+    const pnlSign = pnl >= 0 ? '+' : '';
+    const statusColor = ch.status === 'completed' ? 'status-closed' : ch.status === 'failed' ? 'status-partial' : 'status-open';
+    const modBtns = currentUser?.isMod ? `
+      <button class="btn-sm btn-outline" onclick="openEditChallengeModal('${ch.id}',event)">Edit</button>
+      <button class="btn-sm btn-danger" onclick="openDeleteChallengeModal('${ch.id}',event)">Del</button>` : '';
+    return `<div class="trade-card challenge-card" onclick="loadChallengeDetail('${ch.id}')">
+      <div class="card-header">
+        <div class="card-ticker">${ch.name}</div>
+        <span class="status-badge ${statusColor}">${ch.status}</span>
+      </div>
+      <div class="challenge-progress-bar" style="margin:0.75rem 0 0.25rem">
+        <div class="challenge-progress-fill" style="width:${pct.toFixed(1)}%"></div>
+      </div>
+      <div class="challenge-meta">
+        <span>$${ch.startingBalance.toLocaleString()}</span>
+        <strong>${pct.toFixed(1)}%</strong>
+        <span>$${ch.targetBalance.toLocaleString()}</span>
+      </div>
+      <div class="card-grid-row" style="margin-top:0.5rem">
+        <div class="card-cell"><span class="card-cell-label">Current</span><span class="card-cell-value">$${ch.currentBalance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>
+        <div class="card-cell"><span class="card-cell-label">P&L</span><span class="card-cell-value ${pnl>=0?'pnl-pos':'pnl-neg'}">${pnlSign}$${Math.abs(pnl).toFixed(2)}</span></div>
+        <div class="card-cell"><span class="card-cell-label">Target</span><span class="card-cell-value">$${ch.targetBalance.toLocaleString()}</span></div>
+      </div>
+      <div class="card-footer">
+        <span class="card-date">${fmtDate(ch.createdAt)}${ch.createdBy ? ' · '+ch.createdBy : ''}</span>
+        <div class="card-footer-actions">${modBtns}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderChallengeDetail() {
+  const ch = activeChallenge;
+  document.getElementById('challengeDetailName').textContent = ch.name;
+  const pct = Math.min(100, ((ch.currentBalance - ch.startingBalance) / (ch.targetBalance - ch.startingBalance)) * 100);
+  const pnl = ch.currentBalance - ch.startingBalance;
+  document.getElementById('cdCurrentBal').textContent = '$' + ch.currentBalance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('cdTargetBal').textContent  = '$' + ch.targetBalance.toLocaleString();
+  document.getElementById('cdProgressPct').textContent = pct.toFixed(1) + '%';
+  document.getElementById('cdProgressFill').style.width = pct.toFixed(1) + '%';
+  document.getElementById('cdStartBal').textContent  = 'Started: $' + ch.startingBalance.toLocaleString();
+  document.getElementById('cdStatus').textContent    = ch.status.toUpperCase();
+  document.getElementById('cdPnlTotal').textContent  = (pnl>=0?'+':'') + '$' + pnl.toFixed(2);
+  renderChallengeTradeCards(ch.trades || []);
+  renderChallengeTradeTable(ch.trades || []);
+}
+
+function renderChallengeTradeCards(trades) {
+  const grid = document.getElementById('ctCardsGrid');
+  if (!trades.length) { grid.innerHTML = '<div class="empty-state">No trades yet.</div>'; return; }
+  grid.innerHTML = trades.map(t => {
+    const isClosed = t.status === 'closed';
+    const modActions = currentUser?.isMod ? `
+      <button class="btn-sm btn-outline" onclick="openEditCTModal('${t.id}')">Edit</button>
+      ${!isClosed ? `<button class="btn-sm btn-primary" onclick="openCloseCTModal('${t.id}')">Close</button>` : ''}
+      <button class="btn-sm btn-danger" onclick="deleteCT('${t.id}')">Del</button>` : '';
+    return `<div class="trade-card ${isClosed ? 'card-closed' : ''}">
+      <div class="card-header">
+        <div class="card-ticker">${t.ticker}</div>
+        <span class="dir-badge ${dirBadgeClass(t.direction)}">${t.direction}</span>
+        <span class="status-badge status-${t.status}">${t.status}</span>
+      </div>
+      <div class="card-grid-row">
+        <div class="card-cell"><span class="card-cell-label">Strike</span><span class="card-cell-value">$${t.strike}</span></div>
+        <div class="card-cell"><span class="card-cell-label">Expiry</span><span class="card-cell-value card-cell-sm">${t.expiryDate ? new Date(t.expiryDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</span></div>
+        <div class="card-cell"><span class="card-cell-label">Contracts</span><span class="card-cell-value">${t.contracts}</span></div>
+      </div>
+      <div class="card-grid-row ${isClosed ? '' : 'card-grid-row-last'}">
+        <div class="card-cell"><span class="card-cell-label">Premium</span><span class="card-cell-value">$${t.premium}</span></div>
+        <div class="card-cell"><span class="card-cell-label">Target</span><span class="card-cell-value">${t.target?'$'+t.target:'—'}</span></div>
+        <div class="card-cell"><span class="card-cell-label">Stop</span><span class="card-cell-value">${t.stopLoss?'$'+t.stopLoss:'—'}</span></div>
+      </div>
+      ${isClosed ? `<div class="card-grid-row card-grid-row-last">
+        <div class="card-cell"><span class="card-cell-label">Exit</span><span class="card-cell-value">$${t.exitPremium}</span></div>
+        <div class="card-cell"><span class="card-cell-label">P&L %</span><span class="card-cell-value ${pnlClass(t.realizedPnlPct)}">${fmtPnl(t.realizedPnlPct)}</span></div>
+        <div class="card-cell"><span class="card-cell-label">P&L $</span><span class="card-cell-value ${pnlClass(t.realizedPnlDollar)}">${t.realizedPnlDollar!=null?(t.realizedPnlDollar>=0?'+':'')+'$'+Math.abs(t.realizedPnlDollar).toFixed(2):'—'}</span></div>
+      </div>` : ''}
+      <div class="card-footer">
+        <span class="card-date">${fmtDate(t.createdAt)}${t.createdBy?' · '+t.createdBy:''}</span>
+        <div class="card-footer-actions">${modActions}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderChallengeTradeTable(trades) {
+  const tbody = document.getElementById('ctTableBody');
+  const cols = currentUser?.isMod ? 12 : 11;
+  if (!trades.length) { tbody.innerHTML = `<tr><td colspan="${cols}"><div class="empty-state">No trades.</div></td></tr>`; return; }
+  tbody.innerHTML = trades.map(t => {
+    const modCells = currentUser?.isMod ? `<td class="action-cell">
+      <button class="btn-sm btn-outline" onclick="openEditCTModal('${t.id}')">Edit</button>
+      ${t.status==='open'?`<button class="btn-sm btn-primary" onclick="openCloseCTModal('${t.id}')">Close</button>`:''}
+      <button class="btn-sm btn-danger" onclick="deleteCT('${t.id}')">Del</button></td>` : '';
+    return `<tr>
+      <td>${t.ticker}</td>
+      <td><span class="dir-badge ${dirBadgeClass(t.direction)}">${t.direction}</span></td>
+      <td>$${t.strike}</td>
+      <td>${t.expiryDate?new Date(t.expiryDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}):'—'}</td>
+      <td>$${t.premium}</td><td>${t.contracts}</td>
+      <td>${t.target?'$'+t.target:'—'}</td><td>${t.stopLoss?'$'+t.stopLoss:'—'}</td>
+      <td class="${pnlClass(t.realizedPnlPct)} pnl-cell">${fmtPnl(t.realizedPnlPct)}</td>
+      <td class="${pnlClass(t.realizedPnlDollar)} pnl-cell">${t.realizedPnlDollar!=null?(t.realizedPnlDollar>=0?'+':'')+'$'+Math.abs(t.realizedPnlDollar).toFixed(2):'—'}</td>
+      <td><span class="status-badge status-${t.status}">${t.status}</span></td>
+      ${modCells}
+    </tr>`;
+  }).join('');
+}
+
+// Challenge modals
+function openAddChallengeModal() {
+  editingChallengeId = null;
+  document.getElementById('challengeModalTitle').textContent = 'New Challenge';
+  document.getElementById('challengeForm').reset();
+  openModal('challengeModal');
+}
+
+function openEditChallengeModal(id, e) {
+  e?.stopPropagation();
+  const ch = allChallenges.find(c => c.id === id);
+  if (!ch) return;
+  editingChallengeId = id;
+  document.getElementById('challengeModalTitle').textContent = 'Edit Challenge';
+  document.getElementById('ch-name').value      = ch.name;
+  document.getElementById('ch-start').value     = ch.startingBalance;
+  document.getElementById('ch-target').value    = ch.targetBalance;
+  document.getElementById('ch-startdate').value = ch.startDate ? ch.startDate.toString().slice(0,10) : '';
+  document.getElementById('ch-enddate').value   = ch.endDate   ? ch.endDate.toString().slice(0,10)   : '';
+  document.getElementById('ch-desc').value      = ch.description || '';
+  openModal('challengeModal');
+}
+
+async function handleChallengeSubmit(e) {
+  e.preventDefault();
+  const body = {
+    name:            document.getElementById('ch-name').value,
+    description:     document.getElementById('ch-desc').value,
+    startingBalance: document.getElementById('ch-start').value,
+    targetBalance:   document.getElementById('ch-target').value,
+    startDate:       document.getElementById('ch-startdate').value || null,
+    endDate:         document.getElementById('ch-enddate').value   || null
+  };
+  const url    = editingChallengeId ? `/api/challenges/${editingChallengeId}` : '/api/challenges';
+  const method = editingChallengeId ? 'PUT' : 'POST';
+  const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) { closeModal('challengeModal'); loadChallenges(); }
+  else { const d = await res.json(); alert(d.error || 'Error saving challenge.'); }
+}
+
+function openDeleteChallengeModal(id, e) {
+  e?.stopPropagation();
+  const ch = allChallenges.find(c => c.id === id);
+  if (!ch) return;
+  deletingChallengeId = id;
+  document.getElementById('deleteChallengeName').textContent = ch.name;
+  openModal('deleteChallengeModal');
+}
+
+async function handleDeleteChallenge() {
+  await fetch(`/api/challenges/${deletingChallengeId}`, { method: 'DELETE' });
+  closeModal('deleteChallengeModal');
+  loadChallenges();
+}
+
+// Challenge trade modals
+function openAddCTModal() {
+  editingCTId = null;
+  document.getElementById('challengeTradeModalTitle').textContent = 'Add Trade';
+  document.getElementById('challengeTradeForm').reset();
+  openModal('challengeTradeModal');
+}
+
+function openEditCTModal(id) {
+  const t = activeChallenge.trades.find(x => x.id === id);
+  if (!t) return;
+  editingCTId = id;
+  document.getElementById('challengeTradeModalTitle').textContent = 'Edit Trade';
+  document.getElementById('ct-ticker').value    = t.ticker;
+  document.getElementById('ct-direction').value = t.direction;
+  document.getElementById('ct-strike').value    = t.strike;
+  document.getElementById('ct-expiry').value    = t.expiryDate ? t.expiryDate.toString().slice(0,10) : '';
+  document.getElementById('ct-premium').value   = t.premium;
+  document.getElementById('ct-contracts').value = t.contracts;
+  document.getElementById('ct-target').value    = t.target    || '';
+  document.getElementById('ct-stop').value      = t.stopLoss  || '';
+  document.getElementById('ct-reasoning').value = t.reasoning || '';
+  openModal('challengeTradeModal');
+}
+
+async function handleCTSubmit(e) {
+  e.preventDefault();
+  const body = {
+    ticker:    document.getElementById('ct-ticker').value,
+    direction: document.getElementById('ct-direction').value,
+    strike:    document.getElementById('ct-strike').value,
+    expiryDate:document.getElementById('ct-expiry').value,
+    premium:   document.getElementById('ct-premium').value,
+    contracts: document.getElementById('ct-contracts').value,
+    target:    document.getElementById('ct-target').value    || null,
+    stopLoss:  document.getElementById('ct-stop').value      || null,
+    reasoning: document.getElementById('ct-reasoning').value || ''
+  };
+  const url    = editingCTId
+    ? `/api/challenges/${activeChallengeId}/trades/${editingCTId}`
+    : `/api/challenges/${activeChallengeId}/trades`;
+  const method = editingCTId ? 'PUT' : 'POST';
+  const res = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (res.ok) { closeModal('challengeTradeModal'); loadChallengeDetail(activeChallengeId); }
+  else { const d = await res.json(); alert(d.error || 'Error saving trade.'); }
+}
+
+function openCloseCTModal(id) {
+  const t = activeChallenge.trades.find(x => x.id === id);
+  if (!t) return;
+  closingCTId = id;
+  document.getElementById('closeCTTicker').textContent = `${t.ticker} ${t.direction}`;
+  document.getElementById('closeChallengeTradeForm').reset();
+  openModal('closeChallengeTradeModal');
+}
+
+async function handleCloseCTSubmit(e) {
+  e.preventDefault();
+  const body = {
+    exitPremium: document.getElementById('cct-exitPremium').value,
+    note:        document.getElementById('cct-note').value
+  };
+  const res = await fetch(`/api/challenges/${activeChallengeId}/trades/${closingCTId}/close`, {
+    method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (res.ok) { closeModal('closeChallengeTradeModal'); loadChallengeDetail(activeChallengeId); }
+  else alert('Error closing trade.');
+}
+
+async function deleteCT(id) {
+  if (!confirm('Delete this trade?')) return;
+  await fetch(`/api/challenges/${activeChallengeId}/trades/${id}`, { method: 'DELETE' });
+  loadChallengeDetail(activeChallengeId);
+}
+
+// ─── Section switching ────────────────────────────────────────
+function switchSection(sectionId) {
+  document.querySelectorAll('.nav-section').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.section === sectionId);
+  });
+  ['stocksSection','optionsSection','challengesSection'].forEach(id => {
+    document.getElementById(id).classList.toggle('section-hidden', id !== sectionId);
+  });
+  if (sectionId === 'optionsSection'   && !allOptions.length)    loadOptions();
+  if (sectionId === 'challengesSection' && !allChallenges.length) loadChallenges();
+}
+
 // ─── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 
-  // Filters
+  // Section tabs
+  document.querySelectorAll('.nav-section').forEach(btn => {
+    btn.addEventListener('click', () => switchSection(btn.dataset.section));
+  });
+
+  // Stocks filters
   document.getElementById('searchInput').addEventListener('input', applyFilters);
   document.getElementById('filterStatus').addEventListener('change', applyFilters);
 
-  // View tabs
-  document.querySelectorAll('.view-tab').forEach(btn => {
+  // Options filters
+  document.getElementById('oSearchInput').addEventListener('input', applyOptionFilters);
+  document.getElementById('oFilterStatus').addEventListener('change', applyOptionFilters);
+
+  // View tabs (stocks + options share the same class)
+  document.querySelectorAll('[data-view]').forEach(btn => {
     btn.addEventListener('click', () => switchView(btn.dataset.view));
   });
+  document.querySelectorAll('[data-oview]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-oview]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('#optionsSection .view-panel').forEach(p => p.classList.add('view-panel-hidden'));
+      document.getElementById(btn.dataset.oview).classList.remove('view-panel-hidden');
+    });
+  });
 
-  // Mod controls
+  // Stocks mod controls
   document.getElementById('addTradeBtn').addEventListener('click', openAddModal);
   document.getElementById('fetchTickerBtn').addEventListener('click', fetchTickerInfo);
-
-  // Clear ticker status on input change
   document.getElementById('f-ticker').addEventListener('input', () => {
     document.getElementById('tickerStatus').textContent = '';
     document.getElementById('tickerStatus').className  = 'ticker-status';
     document.getElementById('fetchedPriceHint').textContent = '';
   });
-
-  // Also fetch on Enter inside ticker input
   document.getElementById('f-ticker').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); fetchTickerInfo(); }
   });
-
-  // Update type toggle
   document.getElementById('u-type').addEventListener('change', handleTypeChange);
-
-  // Form submissions
   document.getElementById('tradeForm').addEventListener('submit', handleTradeSubmit);
   document.getElementById('updateForm').addEventListener('submit', handleUpdateSubmit);
   document.getElementById('confirmDeleteBtn').addEventListener('click', handleDelete);
 
-  // Close buttons
+  // Options mod controls
+  document.getElementById('addOptionBtn').addEventListener('click', openAddOptionModal);
+  document.getElementById('optionForm').addEventListener('submit', handleOptionSubmit);
+  document.getElementById('closeOptionForm').addEventListener('submit', handleCloseOptionSubmit);
+  document.getElementById('confirmDeleteOptionBtn').addEventListener('click', handleDeleteOption);
+
+  // Challenges controls
+  document.getElementById('addChallengeBtn').addEventListener('click', openAddChallengeModal);
+  document.getElementById('challengeForm').addEventListener('submit', handleChallengeSubmit);
+  document.getElementById('confirmDeleteChallengeBtn').addEventListener('click', handleDeleteChallenge);
+  document.getElementById('backToChallengesBtn').addEventListener('click', () => {
+    document.getElementById('challengeDetailView').classList.add('section-hidden');
+    document.getElementById('challengeListView').classList.remove('section-hidden');
+  });
+  document.getElementById('addChallengeTradeBtn').addEventListener('click', openAddCTModal);
+  document.getElementById('challengeTradeForm').addEventListener('submit', handleCTSubmit);
+  document.getElementById('closeChallengeTradeForm').addEventListener('submit', handleCloseCTSubmit);
+  document.querySelectorAll('[data-ctview]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-ctview]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('ctCardView').classList.add('view-panel-hidden');
+      document.getElementById('ctTableView').classList.add('view-panel-hidden');
+      document.getElementById(btn.dataset.ctview).classList.remove('view-panel-hidden');
+    });
+  });
+
+  // Close buttons (all modals)
   document.querySelectorAll('[data-close]').forEach(btn => {
     btn.addEventListener('click', () => closeModal(btn.dataset.close));
   });
-
-  // Close on backdrop click
   document.querySelectorAll('.modal').forEach(modal => {
     modal.addEventListener('click', e => {
       if (e.target === modal) closeModal(modal.id);
