@@ -1187,6 +1187,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Challenges controls
   document.getElementById('addChallengeBtn').addEventListener('click', openAddChallengeModal);
+  document.getElementById('postChallengeUpdateBtn').addEventListener('click', () => {
+    document.getElementById('challengeUpdateForm').reset();
+    openModal('challengeUpdateModal');
+  });
+  document.getElementById('challengeUpdateForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.submitter;
+    btn.disabled = true;
+    btn.textContent = 'Posting…';
+    const res = await fetch(`/api/challenges/${activeChallengeId}/post-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note: document.getElementById('cu-note').value })
+    });
+    btn.disabled = false;
+    btn.textContent = 'Post to Discord';
+    if (res.ok) { closeModal('challengeUpdateModal'); }
+    else alert('Failed to post update.');
+  });
   document.getElementById('challengeForm').addEventListener('submit', handleChallengeSubmit);
   document.getElementById('confirmDeleteChallengeBtn').addEventListener('click', handleDeleteChallenge);
   document.getElementById('backToChallengesBtn').addEventListener('click', () => {

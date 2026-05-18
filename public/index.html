@@ -270,6 +270,7 @@
                 <div class="controls">
                     <button class="btn btn-secondary" id="backToChallengesBtn">← Back</button>
                     <h2 class="section-title" id="challengeDetailName"></h2>
+                    <button id="postChallengeUpdateBtn" class="btn btn-secondary mod-only">Post Update</button>
                     <button id="addChallengeTradeBtn" class="btn btn-primary mod-only">+ Add Trade</button>
                 </div>
 
@@ -712,6 +713,26 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-close="closeChallengeTradeModal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Close Trade</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Post Challenge Update Modal ── -->
+    <div id="challengeUpdateModal" class="modal">
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h2>Post Challenge Update</h2>
+                <button class="close-btn" data-close="challengeUpdateModal">&times;</button>
+            </div>
+            <form id="challengeUpdateForm">
+                <div class="form-group">
+                    <label>Note <small>(optional)</small></label>
+                    <textarea id="cu-note" rows="3" placeholder="Add a message with the update…"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close="challengeUpdateModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Post to Discord</button>
                 </div>
             </form>
         </div>

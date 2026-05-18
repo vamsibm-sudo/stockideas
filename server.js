@@ -698,6 +698,38 @@ app.delete('/api/challenges/:id', requireMod, async (req, res) => {
   res.json({ success: true });
 });
 
+// POST send challenge status update to Discord (mods only)
+app.post('/api/challenges/:id/post-update', requireMod, async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM challenges WHERE id=$1', [req.params.id]);
+  if (!rows.length) return res.status(404).json({ error: 'Challenge not found' });
+  const ch  = rowToChallenge(rows[0]);
+  const { note } = req.body;
+
+  const pnl      = ch.currentBalance - ch.startingBalance;
+  const pct      = Math.min(100, ((ch.currentBalance - ch.startingBalance) / (ch.targetBalance - ch.startingBalance)) * 100);
+  const pnlSign  = pnl >= 0 ? '+' : '';
+  const barFilled = Math.round(pct / 10);
+  const progressBar = '█'.repeat(barFilled) + '░'.repeat(10 - barFilled) + ` ${pct.toFixed(1)}%`;
+  const statusColor = ch.status === 'completed' ? 0x57F287 : pnl >= 0 ? 0x5865F2 : 0xED4245;
+
+  await notifyDiscord({
+    title: `📊 Challenge Update — ${ch.name}`,
+    color: statusColor,
+    fields: [
+      { name: 'Current Balance', value: `$${ch.currentBalance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`, inline: true },
+      { name: 'Target',          value: `$${ch.targetBalance.toLocaleString()}`,  inline: true },
+      { name: 'P&L',             value: `${pnlSign}$${Math.abs(pnl).toFixed(2)}`, inline: true },
+      { name: 'Progress',        value: progressBar, inline: false },
+      ...(note ? [{ name: 'Note', value: note, inline: false }] : []),
+      { name: 'Posted by', value: req.user.displayName || req.user.username || '—', inline: true }
+    ],
+    footer: { text: 'Bulls & Bears · Challenges' },
+    timestamp: new Date().toISOString()
+  }, process.env.DISCORD_WEBHOOK_CHALLENGES);
+
+  res.json({ success: true });
+});
+
 // POST add trade to challenge (mods only)
 app.post('/api/challenges/:id/trades', requireMod, async (req, res) => {
   const ch = await pool.query('SELECT * FROM challenges WHERE id=$1', [req.params.id]);
@@ -727,7 +759,6 @@ app.post('/api/challenges/:id/trades', requireMod, async (req, res) => {
       { name: 'Strike',     value: `$${trade.strike}`,      inline: true },
       { name: 'Premium',    value: `$${trade.premium}`,     inline: true },
       { name: 'Contracts',  value: `${trade.contracts}`,    inline: true },
-      { name: 'Balance',    value: `$${challenge.currentBalance.toLocaleString()}`, inline: true },
       ...(reasoning ? [{ name: 'Reasoning', value: reasoning, inline: false }] : []),
       { name: 'Posted by',  value: trade.createdBy||'—',   inline: true }
     ],
@@ -802,8 +833,6 @@ app.post('/api/challenges/:id/trades/:tradeId/close', requireMod, async (req, re
       { name: 'Exit Premium',  value: `$${exit}`,                                          inline: true },
       { name: 'P&L %',         value: `${pnlSign}${pnlPct.toFixed(2)}%`,                  inline: true },
       { name: 'P&L $',         value: `${pnlSign}$${Math.abs(pnlDollar).toFixed(2)}`,     inline: true },
-      { name: 'New Balance',   value: `$${challenge.currentBalance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`, inline: true },
-      { name: 'Progress',      value: `$${challenge.currentBalance.toFixed(0)} / $${challenge.targetBalance.toFixed(0)}`, inline: false },
       ...(note ? [{ name: 'Note', value: note, inline: false }] : []),
       { name: 'Posted by',     value: req.user.displayName||req.user.username||'—',         inline: true }
     ],
