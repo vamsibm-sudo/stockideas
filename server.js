@@ -817,6 +817,13 @@ app.post('/api/challenges/:id/trades/:tradeId/close', requireMod, async (req, re
 
 // ─── Options routes ───────────────────────────────────────────
 
+function fmtExpiry(d) {
+  if (!d) return '—';
+  const s = d instanceof Date ? d.toISOString() : d.toString();
+  const [y, m, day] = s.slice(0, 10).split('-');
+  return `${m}/${day}/${y}`;
+}
+
 function rowToOption(row) {
   const premium     = parseFloat(row.premium);
   const exitPremium = row.exit_premium ? parseFloat(row.exit_premium) : null;
@@ -875,7 +882,7 @@ app.post('/api/options', requireMod, async (req, res) => {
       { name: 'Ticker',     value: opt.ticker,                       inline: true },
       { name: 'Type',       value: opt.direction,                    inline: true },
       { name: 'Strike',     value: `$${opt.strike}`,                 inline: true },
-      { name: 'Expiry',     value: opt.expiryDate?.toString() || '—',inline: true },
+      { name: 'Expiry',     value: fmtExpiry(opt.expiryDate),inline: true },
       { name: 'Premium',    value: `$${opt.premium}`,                inline: true },
       { name: 'Contracts',  value: `${opt.contracts}`,               inline: true },
       ...(opt.target   ? [{ name: 'Target',   value: `$${opt.target}`,   inline: true }] : []),
