@@ -7,7 +7,9 @@ const session = require('express-session');
 const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const fetch = require('node-fetch');
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+// Return DATE columns as plain YYYY-MM-DD strings, not JS Date objects (avoids UTC→local timezone shift)
+types.setTypeParser(1082, val => val);
 const pgSession = require('connect-pg-simple')(session);
 const YahooFinance = require('yahoo-finance2').default;
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
@@ -720,8 +722,7 @@ app.post('/api/challenges/:id/post-update', requireMod, async (req, res) => {
       { name: 'Target',          value: `$${ch.targetBalance.toLocaleString()}`,  inline: true },
       { name: 'P&L',             value: `${pnlSign}$${Math.abs(pnl).toFixed(2)}`, inline: true },
       { name: 'Progress',        value: progressBar, inline: false },
-      ...(note ? [{ name: 'Note', value: note, inline: false }] : []),
-      { name: 'Posted by', value: req.user.displayName || req.user.username || '—', inline: true }
+      ...(note ? [{ name: 'Note', value: note, inline: false }] : [])
     ],
     footer: { text: 'Bulls & Bears · Challenges' },
     timestamp: new Date().toISOString()
@@ -848,8 +849,7 @@ app.post('/api/challenges/:id/trades/:tradeId/close', requireMod, async (req, re
 
 function fmtExpiry(d) {
   if (!d) return '—';
-  const s = d instanceof Date ? d.toISOString() : d.toString();
-  const [y, m, day] = s.slice(0, 10).split('-');
+  const [y, m, day] = d.toString().slice(0, 10).split('-');
   return `${m}/${day}/${y}`;
 }
 

@@ -28,6 +28,16 @@ function fmtDate(iso) {
   });
 }
 
+// Parse YYYY-MM-DD string without timezone shift
+function fmtExpiry(d, short = false) {
+  if (!d) return '—';
+  const [y, m, day] = d.toString().slice(0, 10).split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return short
+    ? `${months[+m-1]} ${+day}, ${y.slice(2)}`
+    : `${months[+m-1]} ${+day}, ${y}`;
+}
+
 // ─── Auth ─────────────────────────────────────────────────────
 async function checkAuth() {
   const params = new URLSearchParams(window.location.search);
@@ -699,7 +709,7 @@ function renderOptionCards(options) {
       </div>
       <div class="card-grid-row">
         <div class="card-cell"><span class="card-cell-label">Strike</span><span class="card-cell-value">$${o.strike}</span></div>
-        <div class="card-cell"><span class="card-cell-label">Expiry</span><span class="card-cell-value card-cell-sm">${o.expiryDate ? new Date(o.expiryDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</span></div>
+        <div class="card-cell"><span class="card-cell-label">Expiry</span><span class="card-cell-value card-cell-sm">${o.expiryDate ? fmtExpiry(o.expiryDate) : '—'}</span></div>
         <div class="card-cell"><span class="card-cell-label">Contracts</span><span class="card-cell-value">${o.contracts}</span></div>
       </div>
       <div class="card-grid-row">
@@ -738,7 +748,7 @@ function renderOptionTable(options) {
       <td><div class="trade-ticker">${o.ticker}</div></td>
       <td><span class="dir-badge ${dirBadgeClass(o.direction)}">${o.direction}</span></td>
       <td>$${o.strike}</td>
-      <td>${o.expiryDate ? new Date(o.expiryDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}) : '—'}</td>
+      <td>${o.expiryDate ? fmtExpiry(o.expiryDate, true) : '—'}</td>
       <td>$${o.premium}</td>
       <td>${o.contracts}</td>
       <td>${o.target ? '$'+o.target : '—'}</td>
@@ -946,7 +956,7 @@ function renderChallengeTradeCards(trades) {
       </div>
       <div class="card-grid-row">
         <div class="card-cell"><span class="card-cell-label">Strike</span><span class="card-cell-value">$${t.strike}</span></div>
-        <div class="card-cell"><span class="card-cell-label">Expiry</span><span class="card-cell-value card-cell-sm">${t.expiryDate ? new Date(t.expiryDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</span></div>
+        <div class="card-cell"><span class="card-cell-label">Expiry</span><span class="card-cell-value card-cell-sm">${t.expiryDate ? fmtExpiry(t.expiryDate) : '—'}</span></div>
         <div class="card-cell"><span class="card-cell-label">Contracts</span><span class="card-cell-value">${t.contracts}</span></div>
       </div>
       <div class="card-grid-row ${isClosed ? '' : 'card-grid-row-last'}">
@@ -980,7 +990,7 @@ function renderChallengeTradeTable(trades) {
       <td>${t.ticker}</td>
       <td><span class="dir-badge ${dirBadgeClass(t.direction)}">${t.direction}</span></td>
       <td>$${t.strike}</td>
-      <td>${t.expiryDate?new Date(t.expiryDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}):'—'}</td>
+      <td>${t.expiryDate?fmtExpiry(t.expiryDate, true):'—'}</td>
       <td>$${t.premium}</td><td>${t.contracts}</td>
       <td>${t.target?'$'+t.target:'—'}</td><td>${t.stopLoss?'$'+t.stopLoss:'—'}</td>
       <td class="${pnlClass(t.realizedPnlPct)} pnl-cell">${fmtPnl(t.realizedPnlPct)}</td>
